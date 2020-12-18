@@ -1,17 +1,9 @@
-TARGET_NAME=sqjson
+.PHONY: all build clean
 
-.PHONY: all build clean test format
+all: sqjson
 
-all: build
-
-build:
-	go build -v -o bin/$(TARGET_NAME) src/*.go
+sqjson: src/main.c
+	clang -o bin/sqjson src/main.c
 
 clean:
 	rm -rf bin
-
-test:
-	go test -v
-
-fmt:
-	gofmt -w *.go
