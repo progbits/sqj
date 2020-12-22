@@ -1,5 +1,19 @@
-#include "stdio.h"
+#include <stdio.h>
 #include <sqlite3.h>
+#include <string.h>
+
+void debug_print(sqlite3_index_info* info) {
+    printf("=== debug_print sqlite3_index_info ===\n");
+    for (int i = 0; i < info->nConstraint; i++) {
+        printf(
+                "Column: %d\n"
+                "Operator: %d\n",
+                info->aConstraint[i].iColumn,
+                info->aConstraint[i].op
+        );
+    }
+    printf("=== debug_print sqlite3_index_info ===\n");
+}
 
 typedef struct json_vtab json_vtab;
 
@@ -14,6 +28,7 @@ typedef struct json_vtab_cursor json_vtab_cursor;
 struct json_vtab_cursor {
     sqlite3_vtab_cursor *base;
     char *input;
+    int count;
 };
 
 int xCreate(sqlite3 *db, void *pAux,
@@ -46,6 +61,7 @@ int xConnect(sqlite3 *db, void *pAux,
 
 int xBestIndex(sqlite3_vtab *pVTab, sqlite3_index_info *pIndexInfo) {
     printf("in xBestIndex(...)\n");
+    debug_print(pIndexInfo);
     return 0;
 }
 
@@ -64,7 +80,9 @@ int xOpen(sqlite3_vtab *pVTab, sqlite3_vtab_cursor **ppCursor) {
     printf("in xOpen(...)\n");
 
     // Open a new cursor.
-    json_vtab_cursor *p_cursor = (json_vtab_cursor*)pVTab;
+    json_vtab_cursor* cursor = sqlite3_malloc(sizeof(json_vtab_cursor));
+    memset(cursor, 0, sizeof(json_vtab_cursor));
+    *ppCursor = (sqlite3_vtab_cursor*)cursor;
     return SQLITE_OK;
 }
 
@@ -81,16 +99,21 @@ int xFilter(sqlite3_vtab_cursor *pVtabCursor, int idxNum, const char *idxStr,
 
 int xNext(sqlite3_vtab_cursor *pVtabCursor) {
     printf("in xNext(...)\n");
-    return 0;
+    json_vtab_cursor* cursor = (json_vtab_cursor*)pVtabCursor;
+    (cursor->count)++;
+    return SQLITE_OK;
 }
 
 int xEof(sqlite3_vtab_cursor *pVtabCursor) {
     printf("in xEof(...)\n");
-    return 0;
+    json_vtab_cursor* cursor = (json_vtab_cursor*)pVtabCursor;
+    const int done = cursor->count > 10;
+    return done;
 }
 
 int xColumn(sqlite3_vtab_cursor *pVtabCursor, sqlite3_context *pContext, int n) {
     printf("in xColumn(...)\n");
+    printf("count: %d\n", ((json_vtab_cursor*)pVtabCursor)->count);
     return 0;
 }
 
@@ -226,7 +249,7 @@ int setup_sqlite3(sqlite3* db) {
     printf("Querying virtual table\n");
     rc = sqlite3_exec(
             db,
-            "SELECT * FROM sqjson",
+            "SELECT * FROM sqjson WHERE value < 5",
             NULL,
             NULL,
             &error_msg
@@ -242,7 +265,7 @@ int setup_sqlite3(sqlite3* db) {
     return 0;
 }
 
-int main() {
+int main(int argc, char** argv) {
     // Setup a new database instance.
     sqlite3 *db = NULL;
 
