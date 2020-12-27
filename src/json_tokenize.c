@@ -8,59 +8,59 @@
 
 void print_json_token(JSON_TOKEN token) {
     switch (token) {
-        case LEFT_SQUARE_BRACKET: {
+        case JSON_TOKEN_LEFT_SQUARE_BRACKET: {
             printf("LEFT_SQUARE_BRACKET\n");
             break;
         }
-        case LEFT_CURLY_BRACKET: {
+        case JSON_TOKEN_LEFT_CURLY_BRACKET: {
             printf("LEFT_CURLY_BRACKET\n");
             break;
         }
-        case RIGHT_SQUARE_BRACKET: {
+        case JSON_TOKEN_RIGHT_SQUARE_BRACKET: {
             printf("RIGHT_SQUARE_BRACKET\n");
             break;
         }
-        case RIGHT_CURLY_BRACKET: {
+        case JSON_TOKEN_RIGHT_CURLY_BRACKET: {
             printf("RIGHT_CURLY_BRACKET\n");
             break;
         }
-        case COLON: {
+        case JSON_TOKEN_COLON: {
             printf("COLON\n");
             break;
         }
-        case COMMA: {
+        case JSON_TOKEN_COMMA: {
             printf("COMMA\n");
             break;
         }
-        case WHITESPACE: {
+        case JSON_TOKEN_WHITESPACE: {
             printf("WHITESPACE\n");
             break;
         }
-        case FALSE: {
+        case JSON_TOKEN_FALSE: {
             printf("FALSE\n");
             break;
         }
-        case JSON_NULL: {
+        case JSON_TOKEN_NULL: {
             printf("JSON_NULL\n");
             break;
         }
-        case TRUE: {
+        case JSON_TOKEN_TRUE: {
             printf("TRUE\n");
             break;
         }
-        case OBJECT: {
+        case JSON_TOKEN_OBJECT: {
             printf("OBJECT\n");
             break;
         }
-        case ARRAY: {
+        case JSON_TOKEN_ARRAY: {
             printf("ARRAY\n");
             break;
         }
-        case NUMBER: {
+        case JSON_TOKEN_NUMBER: {
             printf("NUMBER\n");
             break;
         }
-        case STRING: {
+        case JSON_TOKEN_STRING: {
             printf("STRING\n");
             break;
         }
@@ -109,32 +109,32 @@ void tokenize(const char* input, size_t size, Vec** tokens) {
         // Handle structural characters.
         switch (input[index]) {
             case '[': {
-                vec_push_back(*tokens, LEFT_SQUARE_BRACKET);
+                vec_push_back(*tokens, JSON_TOKEN_LEFT_SQUARE_BRACKET);
                 ++index;
                 continue;
             }
             case '{': {
-                vec_push_back(*tokens, LEFT_CURLY_BRACKET);
+                vec_push_back(*tokens, JSON_TOKEN_LEFT_CURLY_BRACKET);
                 ++index;
                 continue;
             }
             case ']': {
-                vec_push_back(*tokens, RIGHT_SQUARE_BRACKET);
+                vec_push_back(*tokens, JSON_TOKEN_RIGHT_SQUARE_BRACKET);
                 ++index;
                 continue;
             }
             case '}': {
-                vec_push_back(*tokens, RIGHT_CURLY_BRACKET);
+                vec_push_back(*tokens, JSON_TOKEN_RIGHT_CURLY_BRACKET);
                 ++index;
                 continue;
             }
             case ':': {
-                vec_push_back(*tokens, COLON);
+                vec_push_back(*tokens, JSON_TOKEN_COLON);
                 ++index;
                 continue;
             }
             case ',': {
-                vec_push_back(*tokens, COMMA);
+                vec_push_back(*tokens, JSON_TOKEN_COMMA);
                 ++index;
                 continue;
             }
@@ -142,19 +142,19 @@ void tokenize(const char* input, size_t size, Vec** tokens) {
 
         // Handle boolean literals.
         if (starts_with("true", input + index)) {
-            vec_push_back(*tokens, TRUE);
+            vec_push_back(*tokens, JSON_TOKEN_TRUE);
             input += strlen("true");
             continue;
         }
         if (starts_with("false", input + index)) {
-            vec_push_back(*tokens, FALSE);
+            vec_push_back(*tokens, JSON_TOKEN_FALSE);
             input += strlen("false");
             continue;
         }
 
         // Handle null literal.
         if (starts_with("null", input + index)) {
-            vec_push_back(*tokens, JSON_NULL);
+            vec_push_back(*tokens, JSON_TOKEN_NULL);
             input += strlen("null");
             continue;
         }
@@ -164,7 +164,7 @@ void tokenize(const char* input, size_t size, Vec** tokens) {
             char* end;
             double value = strtod(input + index, &end);
             printf("Parsed numeric literal %f\n", value);
-            vec_push_back(*tokens, NUMBER);
+            vec_push_back(*tokens, JSON_TOKEN_NUMBER);
             index += end - (input + index);
             continue;
         }
@@ -175,7 +175,7 @@ void tokenize(const char* input, size_t size, Vec** tokens) {
             while (consume < size && input[consume] != '\"') {
                 ++consume;
             }
-            vec_push_back(*tokens, STRING);
+            vec_push_back(*tokens, JSON_TOKEN_STRING);
             index = ++consume;
             continue;
         }
