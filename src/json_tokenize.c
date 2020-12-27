@@ -4,10 +4,26 @@
 #include <stdlib.h>
 
 #include "json_tokenize.h"
-#include "vector.h"
 
-void print_json_token(JSON_TOKEN token) {
-    switch (token) {
+void init_tokens(Tokens *tokens, size_t size) {
+    if (size == 0) {
+        size = 1;
+    }
+    tokens->data = malloc(size * sizeof(Token *));
+    tokens->size = 0;
+    tokens->allocated_size = size;
+}
+
+void push_token(Tokens *tokens, Token *token) {
+    if (tokens->size == tokens->allocated_size) {
+        tokens->allocated_size *= 2;
+        tokens->data = realloc(tokens->data, tokens->allocated_size * sizeof(Token *));
+    }
+    tokens->data[tokens->size++] = token;
+}
+
+void print_json_token(Token *token) {
+    switch (token->type) {
         case JSON_TOKEN_LEFT_SQUARE_BRACKET: {
             printf("LEFT_SQUARE_BRACKET\n");
             break;
@@ -57,11 +73,11 @@ void print_json_token(JSON_TOKEN token) {
             break;
         }
         case JSON_TOKEN_NUMBER: {
-            printf("NUMBER\n");
+            printf("NUMBER: %f\n", token->number);
             break;
         }
         case JSON_TOKEN_STRING: {
-            printf("STRING\n");
+            printf("STRING: %s\n", token->string);
             break;
         }
         default: {
@@ -93,14 +109,17 @@ int starts_with(const char *prefix, const char *string) {
 
 // Tokenize a JSON input.
 //
-// Tokenize the RCF7159 JSON grammar.
+// Tokenize the RCF7159 JSON grammar:
+//      JSON-text = ws value ws.
 //
-// JSON-text = ws value ws.
-void tokenize(const char* input, size_t size, Vec** tokens) {
-    *tokens = malloc(sizeof (Vec));
-    new_vec(*tokens, 0);
+// Returns the number of data.
+void tokenize(const char *input, size_t size, Tokens *tokens) {
+    init_tokens(tokens, 1);
     size_t index = 0;
     while (index < size) {
+        // Allocate a new Token.
+        Token *token = calloc(1, sizeof(Token));
+
         // Skip whitespace.
         while (is_json_whitespace(input[index])) {
             ++index;
@@ -109,32 +128,38 @@ void tokenize(const char* input, size_t size, Vec** tokens) {
         // Handle structural characters.
         switch (input[index]) {
             case '[': {
-                vec_push_back(*tokens, JSON_TOKEN_LEFT_SQUARE_BRACKET);
+                token->type = JSON_TOKEN_LEFT_SQUARE_BRACKET;
+                push_token(tokens, token);
                 ++index;
                 continue;
             }
             case '{': {
-                vec_push_back(*tokens, JSON_TOKEN_LEFT_CURLY_BRACKET);
+                token->type = JSON_TOKEN_LEFT_CURLY_BRACKET;
+                push_token(tokens, token);
                 ++index;
                 continue;
             }
             case ']': {
-                vec_push_back(*tokens, JSON_TOKEN_RIGHT_SQUARE_BRACKET);
+                token->type = JSON_TOKEN_RIGHT_SQUARE_BRACKET;
+                push_token(tokens, token);
                 ++index;
                 continue;
             }
             case '}': {
-                vec_push_back(*tokens, JSON_TOKEN_RIGHT_CURLY_BRACKET);
+                token->type = JSON_TOKEN_RIGHT_CURLY_BRACKET;
+                push_token(tokens, token);
                 ++index;
                 continue;
             }
             case ':': {
-                vec_push_back(*tokens, JSON_TOKEN_COLON);
+                token->type = JSON_TOKEN_COLON;
+                push_token(tokens, token);
                 ++index;
                 continue;
             }
             case ',': {
-                vec_push_back(*tokens, JSON_TOKEN_COMMA);
+                token->type = JSON_TOKEN_COMMA;
+                push_token(tokens, token);
                 ++index;
                 continue;
             }
@@ -142,29 +167,33 @@ void tokenize(const char* input, size_t size, Vec** tokens) {
 
         // Handle boolean literals.
         if (starts_with("true", input + index)) {
-            vec_push_back(*tokens, JSON_TOKEN_TRUE);
-            input += strlen("true");
+            token->type = JSON_TOKEN_TRUE;
+            push_token(tokens, token);
+            index += strlen("true");
             continue;
         }
         if (starts_with("false", input + index)) {
-            vec_push_back(*tokens, JSON_TOKEN_FALSE);
-            input += strlen("false");
+            token->type = JSON_TOKEN_FALSE;
+            push_token(tokens, token);
+            index += strlen("false");
             continue;
         }
 
         // Handle null literal.
         if (starts_with("null", input + index)) {
-            vec_push_back(*tokens, JSON_TOKEN_NULL);
-            input += strlen("null");
+            token->type = JSON_TOKEN_NULL;
+            push_token(tokens, token);
+            index += strlen("null");
             continue;
         }
 
         // Consume numeric literals.
         if ((input[index] >= '0' && input[index] <= '9') || input[index] == '-') {
-            char* end;
+            char *end;
             double value = strtod(input + index, &end);
-            printf("Parsed numeric literal %f\n", value);
-            vec_push_back(*tokens, JSON_TOKEN_NUMBER);
+            token->type = JSON_TOKEN_NUMBER;
+            token->number = value;
+            push_token(tokens, token);
             index += end - (input + index);
             continue;
         }
@@ -175,17 +204,20 @@ void tokenize(const char* input, size_t size, Vec** tokens) {
             while (consume < size && input[consume] != '\"') {
                 ++consume;
             }
-            vec_push_back(*tokens, JSON_TOKEN_STRING);
+            token->type = JSON_TOKEN_STRING;
+            token->string = calloc(((consume - index) + 1), sizeof(char));
+            memcpy(token->string, input + index, consume - index);
+            push_token(tokens, token);
             index = ++consume;
             continue;
         }
 
         // This should never happen.
-        assert("Tokenization failed!");
-        break;
+        fprintf(stderr, "tokenization failed!\n");
+        exit(1);
     }
 
-    for (int i = 0; i < (*tokens)->occupied; ++i) {
-        print_json_token((*tokens)->data[i]);
+    for (int i = 0; i < tokens->size; i++) {
+        print_json_token(tokens->data[i]);
     }
 }

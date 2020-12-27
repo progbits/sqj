@@ -25,16 +25,31 @@ typedef enum JSON_TOKEN {
     JSON_TOKEN_STRING
 } JSON_TOKEN;
 
-typedef struct JSONToken {
-    enum JSON_TOKEN type;
-    void* value;
-} JSONToken;
+// Token represents a JSON token.
+typedef struct Token {
+    JSON_TOKEN type;
+
+    // Value if token is of type JSON_TOKEN_STRING.
+    char* string;
+
+    // Value if token is of type JSON_TOKEN_NUMBER.
+    double number;
+} Token;
+
+typedef struct Tokens {
+    Token** data;
+    size_t size;
+    size_t allocated_size;
+} Tokens;
 
 // Tokenize a JSON input.
 //
 // Tokenize the RCF7159 JSON grammar.
 //
 // JSON-test = ws value ws.
-void tokenize(const char* input, size_t size, Vec** tokens);
+//
+// TODO:
+//      - Handle escaped chars.
+void tokenize(const char* input, size_t size, Tokens* tokens);
 
 #endif // JSON_TOKENIZE_H

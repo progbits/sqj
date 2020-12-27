@@ -2,20 +2,19 @@
 
 void assert_test_case(const char* json, const JSON_TOKEN* expected, size_t expected_size) {
     // Arrange.
-    Vec* tokens = malloc(sizeof(Vec));
+    Tokens tokens;
 
     // Act.
     tokenize(json, strlen(json), &tokens);
 
     // Assert.
-    assert(tokens->occupied == expected_size);
+    assert(tokens.size == expected_size);
     for (size_t i = 0; i < expected_size; i++) {
-        assert(tokens->data[i] == expected[i]);
+        assert(tokens.data[i]->type == expected[i]);
     }
 
     // Clean up.
-    vec_destroy(tokens);
-    free(tokens);
+    free(tokens.data);
 }
 
 int main() {
