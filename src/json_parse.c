@@ -1,67 +1,51 @@
+#include <stddef.h>
+
 #include "json_parse.h"
 #include "util.h"
 
-void parse_object(JSONNode *root, Tokens *tokens, size_t offset);
-
-Token *peek_token(Tokens *tokens, size_t offset) {
-    if (offset >= tokens->size) {
-        return NULL;
-    }
-    return tokens->data[offset];
-}
-
+void parse_object(JSONNode* root, Token* tokens);
 
 // Parse an array.
-void parse_array(JSONNode *node, Tokens *tokens, size_t offset) {
+//
+// The parameter *node* points to a pre-allocated node for the array.
+void parse_array(JSONNode* node, Token* tokens) {
     node->value = JSON_VALUE_ARRAY;
-
-    // Exit early for empty arrays.
-    if (tokens->data[offset]->type == JSON_TOKEN_RIGHT_SQUARE_BRACKET) {
-        return;
-    }
-
-    // Parse the values of the array.
-    while (offset < tokens->size) {
-        // Allocate a new value.
-        JSONNode *value = calloc(1, sizeof(JSONNode));
-
-        // Parse the value.
-        switch (tokens->data[offset]->type) {
+    while (tokens) {
+        JSONNode* value = calloc(1, sizeof(JSONNode));
+        switch ((tokens++)->type) {
+            case (JSON_TOKEN_RIGHT_SQUARE_BRACKET): {
+                return; // Empty array.
+            }
             case (JSON_TOKEN_FALSE): {
                 value->value = JSON_VALUE_FALSE;
-                ++offset;
                 break;
             }
             case (JSON_TOKEN_NULL): {
                 value->value = JSON_VALUE_FALSE;
-                ++offset;
                 break;
             }
             case (JSON_TOKEN_TRUE): {
                 value->value = JSON_VALUE_TRUE;
-                ++offset;
                 break;
             }
             case (JSON_TOKEN_LEFT_CURLY_BRACKET): {
                 value->value = JSON_VALUE_OBJECT;
-                parse_object(value, tokens, offset + 1);
+                parse_object(value, tokens);
                 break;
             }
             case (JSON_TOKEN_LEFT_SQUARE_BRACKET): {
                 value->value = JSON_VALUE_ARRAY;
-                parse_array(value, tokens, offset + 1);
+                parse_array(value, tokens);
                 break;
             }
             case (JSON_TOKEN_NUMBER): {
                 value->value = JSON_VALUE_NUMBER;
-                value->number_value = tokens->data[offset]->number;
-                ++offset;
+                value->number_value = tokens->number;
                 break;
             }
             case (JSON_TOKEN_STRING): {
                 value->value = JSON_VALUE_STRING;
-                value->string_value = strdup(tokens->data[offset]->string);
-                ++offset;
+                value->string_value = strdup(tokens->string);
                 break;
             }
             default: {
@@ -69,87 +53,72 @@ void parse_array(JSONNode *node, Tokens *tokens, size_t offset) {
             }
         }
 
+        // Update the current node to point to the next value.
         node->next = value;
         node = node->next;
 
-        // Parse the next member.
-        if (tokens->data[offset]->type == JSON_TOKEN_COMMA) {
-            ++offset;
-            continue;
-        }
-
-        // End of array.
-        if (tokens->data[offset]->type == JSON_TOKEN_RIGHT_SQUARE_BRACKET) {
-            ++offset;
-            break;
+        if (tokens->type == JSON_TOKEN_COMMA) {
+            ++tokens;
+            continue; // Parse the next array value.
+        } else if (tokens->type == JSON_TOKEN_RIGHT_SQUARE_BRACKET) {
+            ++tokens;
+            break; // End of array.
         }
         log_and_exit("unexpected token\n");
     }
 }
 
 // Parse an object.
-void parse_object(JSONNode *node, Tokens *tokens, size_t offset) {
+void parse_object(JSONNode* node, Token* tokens) {
     node->value = JSON_VALUE_OBJECT;
-
-    // Exit early for empty objects.
-    if (tokens->data[offset]->type == JSON_TOKEN_RIGHT_CURLY_BRACKET) {
-        return;
-    }
-
-    // Parse the members of the object.
-    while (offset < tokens->size) {
-        // Object has at least one member.
-        if (tokens->data[offset]->type != JSON_TOKEN_STRING) {
+    while (tokens) {
+        if (tokens->type != JSON_TOKEN_STRING) {
             log_and_exit("expected a value of type string\n");
         }
 
         // Parse the member name.
-        JSONNode *member = calloc(1, sizeof(JSONNode));
-        member->name = strdup(tokens->data[offset]->string);
-        ++offset;
+        JSONNode* member = calloc(1, sizeof(JSONNode));
+        member->name = strdup(tokens->string);
 
-        if (tokens->data[offset]->type != JSON_TOKEN_COLON) {
+        if ((++tokens)->type != JSON_TOKEN_COLON) {
             log_and_exit("expected JSON_TOKEN_COLON\n");
         }
-        ++offset;
 
         // Parse the member value.
-        switch (tokens->data[offset]->type) {
+        switch ((++tokens)->type) {
+            case (JSON_TOKEN_RIGHT_CURLY_BRACKET): {
+                return; // Empty object.
+            }
             case (JSON_TOKEN_FALSE): {
                 member->value = JSON_VALUE_FALSE;
-                ++offset;
                 break;
             }
             case (JSON_TOKEN_NULL): {
                 member->value = JSON_VALUE_FALSE;
-                ++offset;
                 break;
             }
             case (JSON_TOKEN_TRUE): {
                 member->value = JSON_VALUE_TRUE;
-                ++offset;
                 break;
             }
             case (JSON_TOKEN_LEFT_CURLY_BRACKET): {
                 member->value = JSON_VALUE_OBJECT;
-                parse_object(member, tokens, offset + 1);
+                parse_object(member, tokens);
                 break;
             }
             case (JSON_TOKEN_LEFT_SQUARE_BRACKET): {
                 member->value = JSON_VALUE_ARRAY;
-                parse_array(member, tokens, offset + 1);
+                parse_array(member, tokens);
                 break;
             }
             case (JSON_TOKEN_NUMBER): {
                 member->value = JSON_VALUE_NUMBER;
-                member->number_value = tokens->data[offset]->number;
-                ++offset;
+                member->number_value = tokens->number;
                 break;
             }
             case (JSON_TOKEN_STRING): {
                 member->value = JSON_VALUE_STRING;
-                member->string_value = strdup(tokens->data[offset]->string);
-                ++offset;
+                member->string_value = strdup(tokens->string);
                 break;
             }
             default: {
@@ -161,35 +130,56 @@ void parse_object(JSONNode *node, Tokens *tokens, size_t offset) {
         node = node->next;
 
         // Parse the next member.
-        if (tokens->data[offset]->type == JSON_TOKEN_COMMA) {
-            ++offset;
-            continue;
+        if (++tokens == NULL) {
+            log_and_exit("unexpected end of token stream\n");
         }
 
-        // End of object.
-        if (tokens->data[offset]->type == JSON_TOKEN_RIGHT_CURLY_BRACKET) {
-            ++offset;
-            break;
+        if (tokens->type == JSON_TOKEN_COMMA) {
+            continue; // Parse next member.
+        } else if (tokens->type == JSON_TOKEN_RIGHT_CURLY_BRACKET) {
+            break; // End of object.
         }
         log_and_exit("unexpected token\n");
     }
 }
 
 // Parse a JSON AST from a stream of tokens.
-void parse(Tokens *tokens, JSONNode **ast) {
+void parse(Token* tokens, JSONNode** ast) {
     // At the moment, we only consider our root node can be of type Object.
     *ast = calloc(1, sizeof(JSONNode));
-    switch (tokens->data[0]->type) {
+    switch (tokens->type) {
+        case (JSON_TOKEN_FALSE): {
+            (*ast)->value = JSON_VALUE_FALSE;
+            return;
+        }
+        case (JSON_TOKEN_NULL): {
+            (*ast)->value = JSON_VALUE_NULL;
+            return;
+        }
+        case (JSON_TOKEN_TRUE): {
+            (*ast)->value = JSON_VALUE_TRUE;
+            return;
+        }
         case (JSON_TOKEN_LEFT_CURLY_BRACKET): {
-            parse_object(*ast, tokens, 1);
+            parse_object(*ast, ++tokens);
             break;
         }
         case (JSON_TOKEN_LEFT_SQUARE_BRACKET): {
-            parse_array(*ast, tokens, 1);
+            parse_array(*ast, ++tokens);
             break;
         }
+        case (JSON_TOKEN_NUMBER): {
+            (*ast)->value = JSON_VALUE_NUMBER;
+            (*ast)->number_value = tokens->number;
+            return;
+        }
+        case (JSON_TOKEN_STRING): {
+            (*ast)->value = JSON_VALUE_STRING;
+            (*ast)->string_value = strdup(tokens->string);
+            return;
+        }
         default: {
-            log_and_exit("expected first token to be { or [\n");
+            log_and_exit("unexpected token");
         }
     }
 }

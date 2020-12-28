@@ -1,10 +1,10 @@
 #ifndef JSON_PARSE_H
 #define JSON_PARSE_H
 
-#include <stdio.h>
 #include <assert.h>
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "json_tokenize.h"
 
@@ -46,6 +46,6 @@ typedef struct JSONNode {
 } JSONNode;
 
 // Parse a collection of JSON tokens into an AST.
-void parse(Tokens* tokens, JSONNode** ast);
+void parse(Token* tokens, JSONNode** ast);
 
 #endif // JSON_PARSE_H
