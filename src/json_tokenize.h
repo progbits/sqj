@@ -1,10 +1,10 @@
 #ifndef JSON_TOKENIZE_H
 #define JSON_TOKENIZE_H
 
-#include <stdio.h>
 #include <assert.h>
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef enum JSON_TOKEN {
     JSON_TOKEN_LEFT_SQUARE_BRACKET,
@@ -45,6 +45,6 @@ typedef struct Token {
 void tokenize(const char* input, Token** tokens, size_t* n_tokens);
 
 // Pretty print a token and its value, if it has one.
-void print_json_token(Token *token);
+void print_json_token(Token* token);
 
 #endif // JSON_TOKENIZE_H
