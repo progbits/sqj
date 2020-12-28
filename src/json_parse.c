@@ -79,7 +79,6 @@ void parse_object(JSONNode* node, Token* tokens) {
             log_and_exit("expected a value of type string\n");
         }
 
-        // Parse the member name.
         JSONNode* member = calloc(1, sizeof(JSONNode));
         member->name = strdup(tokens->string);
 
@@ -132,14 +131,15 @@ void parse_object(JSONNode* node, Token* tokens) {
         node->next = member;
         node = node->next;
 
-        // Parse the next member.
         if (++tokens == NULL) {
             log_and_exit("unexpected end of token stream\n");
         }
 
         if (tokens->type == JSON_TOKEN_COMMA) {
+            ++tokens;
             continue; // Parse next member.
         } else if (tokens->type == JSON_TOKEN_RIGHT_CURLY_BRACKET) {
+            ++tokens;
             break; // End of object.
         }
         log_and_exit("unexpected token\n");
