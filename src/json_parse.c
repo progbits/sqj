@@ -12,7 +12,7 @@ void parse_array(JSONNode* node, Token* tokens) {
     node->value = JSON_VALUE_ARRAY;
     while (tokens) {
         JSONNode* value = calloc(1, sizeof(JSONNode));
-        switch ((tokens++)->type) {
+        switch (tokens->type) {
             case (JSON_TOKEN_RIGHT_SQUARE_BRACKET): {
                 return; // Empty array.
             }
@@ -53,9 +53,12 @@ void parse_array(JSONNode* node, Token* tokens) {
             }
         }
 
-        // Update the current node to point to the next value.
         node->next = value;
         node = node->next;
+
+        if (++tokens == NULL) {
+            log_and_exit("unexpected end of token stream\n");
+        }
 
         if (tokens->type == JSON_TOKEN_COMMA) {
             ++tokens;
