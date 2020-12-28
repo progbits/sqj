@@ -1,6 +1,6 @@
-.PHONY: all build test test-tokenize clean
+.PHONY: sqjson test-tokenize test-parse test clean
 
-all: sqjson
+.DEFAULT_GOAL := sqjson
 
 sqjson: src/main.c src/json_tokenize.c src/json_parse.c src/util.c
 	clang -g -O0 -lsqlite3 -o bin/sqjson src/main.c src/json_tokenize.c src/json_parse.c src/util.c
