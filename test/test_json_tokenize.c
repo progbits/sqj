@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stddef.h>
 #include <check.h>
 
 #include "../src/json_tokenize.h"
@@ -7,8 +8,9 @@ START_TEST(test_json_tokenize_0)
 {
     // Arrange.
     const char *raw_json = "{\"foo\": 1, \"bar\": 3.14, \"baz\": true, \"foobar\": false, \"foobaz\": \"hello, world\"}";
-    Tokens tokens;
-    tokenize(raw_json, strlen(raw_json), &tokens);
+    Token* tokens = NULL;
+    size_t n_tokens = 0;
+    tokenize(raw_json, &tokens, &n_tokens);
 
     const JSON_TOKEN expected_tokens[] = {
             JSON_TOKEN_LEFT_CURLY_BRACKET,
@@ -35,22 +37,21 @@ START_TEST(test_json_tokenize_0)
     };
 
     // Assert.
-    ck_assert_int_eq(tokens.size, sizeof(expected_tokens) / sizeof(expected_tokens[0]));
-    for (size_t i = 0; i < tokens.size; i++) {
-        ck_assert_int_eq(tokens.data[i]->type, expected_tokens[i]);
+    ck_assert_int_eq(n_tokens, sizeof(expected_tokens) / sizeof(expected_tokens[0]));
+    for (size_t i = 0; i < n_tokens; i++) {
+        ck_assert_int_eq(tokens[i].type, expected_tokens[i]);
     }
-
-    free(tokens.data);
+    free(tokens);
 }
 END_TEST
-
 
 START_TEST(test_json_tokenize_1)
 {
     const char *raw_json = "{\"foo\": [{\"bar\": 1}, {\"baz\": 2}]}";
 
-    Tokens tokens;
-    tokenize(raw_json, strlen(raw_json), &tokens);
+    Token* tokens = NULL;
+    size_t n_tokens = 0;
+    tokenize(raw_json, &tokens, &n_tokens);
 
     const JSON_TOKEN expected_tokens[] = {
             JSON_TOKEN_LEFT_CURLY_BRACKET,
@@ -73,13 +74,13 @@ START_TEST(test_json_tokenize_1)
     };
 
     // Assert.
-    ck_assert_int_eq(tokens.size, sizeof(expected_tokens) / sizeof(expected_tokens[0]));
-    for (size_t i = 0; i < tokens.size; i++) {
-        ck_assert_int_eq(tokens.data[i]->type, expected_tokens[i]);
+    ck_assert_int_eq(n_tokens, sizeof(expected_tokens) / sizeof(expected_tokens[0]));
+    for (size_t i = 0; i < n_tokens; i++) {
+        ck_assert_int_eq(tokens[i].type, expected_tokens[i]);
     }
 
     // Clean up.
-    free(tokens.data);
+    free(tokens);
 }
 END_TEST
 

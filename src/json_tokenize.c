@@ -5,23 +5,6 @@
 
 #include "json_tokenize.h"
 
-void init_tokens(Tokens *tokens, size_t size) {
-    if (size == 0) {
-        size = 1;
-    }
-    tokens->data = malloc(size * sizeof(Token *));
-    tokens->size = 0;
-    tokens->allocated_size = size;
-}
-
-void push_token(Tokens *tokens, Token *token) {
-    if (tokens->size == tokens->allocated_size) {
-        tokens->allocated_size *= 2;
-        tokens->data = realloc(tokens->data, tokens->allocated_size * sizeof(Token *));
-    }
-    tokens->data[tokens->size++] = token;
-}
-
 void print_json_token(Token *token) {
     switch (token->type) {
         case JSON_TOKEN_LEFT_SQUARE_BRACKET: {
@@ -86,8 +69,8 @@ void print_json_token(Token *token) {
     }
 }
 
-int is_json_whitespace(char value) {
-    switch (value) {
+int is_json_whitespace(const char* value) {
+    switch (*value) {
         case '\x20':
         case '\x09':
         case '\x0A':
@@ -113,102 +96,90 @@ int starts_with(const char *prefix, const char *string) {
 //      JSON-text = ws value ws.
 //
 // Returns the number of data.
-void tokenize(const char *input, size_t size, Tokens *tokens) {
-    init_tokens(tokens, 1);
-    size_t index = 0;
-    while (index < size) {
-        // Allocate a new Token.
-        Token *token = calloc(1, sizeof(Token));
+void tokenize(const char *input, Token** tokens, size_t* n_tokens) {
+    size_t allocated = 0;
+    while (*input != '\0') {
+        // Allocate some space for the next token.
+        *tokens = realloc(*tokens, (allocated + 1) * sizeof(Token));
+        Token* token = &((*tokens)[allocated++]);
 
         // Skip whitespace.
-        while (is_json_whitespace(input[index])) {
-            ++index;
+        while (is_json_whitespace(input)) {
+            ++input;
         }
 
         // Handle structural characters.
-        switch (input[index]) {
+        switch (*input) {
             case '[': {
                 token->type = JSON_TOKEN_LEFT_SQUARE_BRACKET;
-                push_token(tokens, token);
-                ++index;
+                ++input;
                 continue;
             }
             case '{': {
                 token->type = JSON_TOKEN_LEFT_CURLY_BRACKET;
-                push_token(tokens, token);
-                ++index;
+                ++input;
                 continue;
             }
             case ']': {
                 token->type = JSON_TOKEN_RIGHT_SQUARE_BRACKET;
-                push_token(tokens, token);
-                ++index;
+                ++input;
                 continue;
             }
             case '}': {
                 token->type = JSON_TOKEN_RIGHT_CURLY_BRACKET;
-                push_token(tokens, token);
-                ++index;
+                ++input;
                 continue;
             }
             case ':': {
                 token->type = JSON_TOKEN_COLON;
-                push_token(tokens, token);
-                ++index;
+                ++input;
                 continue;
             }
             case ',': {
                 token->type = JSON_TOKEN_COMMA;
-                push_token(tokens, token);
-                ++index;
+                ++input;
                 continue;
             }
         }
 
         // Handle boolean literals.
-        if (starts_with("true", input + index)) {
+        if (starts_with("true", input)) {
             token->type = JSON_TOKEN_TRUE;
-            push_token(tokens, token);
-            index += strlen("true");
+            input += strlen("true");
             continue;
         }
-        if (starts_with("false", input + index)) {
+        if (starts_with("false", input)) {
             token->type = JSON_TOKEN_FALSE;
-            push_token(tokens, token);
-            index += strlen("false");
+            input += strlen("false");
             continue;
         }
 
         // Handle null literal.
-        if (starts_with("null", input + index)) {
+        if (starts_with("null", input)) {
             token->type = JSON_TOKEN_NULL;
-            push_token(tokens, token);
-            index += strlen("null");
+            input += strlen("null");
             continue;
         }
 
         // Consume numeric literals.
-        if ((input[index] >= '0' && input[index] <= '9') || input[index] == '-') {
+        if ((*input >= '0' && *input <= '9') || *input == '-') {
             char *end;
-            double value = strtod(input + index, &end);
+            double value = strtod(input, &end);
             token->type = JSON_TOKEN_NUMBER;
             token->number = value;
-            push_token(tokens, token);
-            index += end - (input + index);
+            input = end;
             continue;
         }
 
         // Must be consuming a string.
-        if (input[index] == '\"') {
-            size_t consume = ++index;
-            while (consume < size && input[consume] != '\"') {
-                ++consume;
+        if (*input == '\"') {
+            const char* start = ++input;
+            while (input && *input != '\"') {
+                ++input;
             }
             token->type = JSON_TOKEN_STRING;
-            token->string = calloc(((consume - index) + 1), sizeof(char));
-            memcpy(token->string, input + index, consume - index);
-            push_token(tokens, token);
-            index = ++consume;
+            token->string = strndup(start, input - start);
+            ++input;
             continue;
         }
 
@@ -216,8 +187,5 @@ void tokenize(const char *input, size_t size, Tokens *tokens) {
         fprintf(stderr, "tokenization failed!\n");
         exit(1);
     }
-
-    for (int i = 0; i < tokens->size; i++) {
-        print_json_token(tokens->data[i]);
-    }
+    *n_tokens = allocated;
 }
