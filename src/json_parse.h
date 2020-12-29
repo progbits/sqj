@@ -29,9 +29,6 @@ typedef struct JSONNode {
     // Name of object member.
     char* name;
 
-    // The next member of an object or the next value of an array.
-    struct JSONNode* next;
-
     // Object members.
     struct JSONNode* members;
 
