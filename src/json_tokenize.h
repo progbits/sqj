@@ -34,11 +34,7 @@ typedef struct Token {
     double number;
 } Token;
 
-// Tokenize a JSON input.
-//
-// Tokenize the RCF7159 JSON grammar.
-//
-// JSON-test = ws value ws.
+// Tokenize an RCF7159 JSON input.
 //
 // TODO:
 //      - Handle escaped chars.

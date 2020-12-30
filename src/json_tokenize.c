@@ -90,12 +90,6 @@ int starts_with(const char* prefix, const char* string) {
     return memcmp(prefix, string, strlen(prefix)) == 0;
 }
 
-// Tokenize a JSON input.
-//
-// Tokenize the RCF7159 JSON grammar:
-//      JSON-text = ws value ws.
-//
-// Returns the number of data.
 void tokenize(const char* input, Token** tokens, size_t* n_tokens) {
     size_t allocated = 0;
     while (*input != '\0') {
