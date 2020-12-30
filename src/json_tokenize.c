@@ -105,7 +105,9 @@ void tokenize(const char* input, Token** tokens, size_t* n_tokens) {
 
         // Skip whitespace.
         while (is_json_whitespace(input)) {
-            ++input;
+            if (*(++input) == '\0') {
+                return;
+            }
         }
 
         // Handle structural characters.
