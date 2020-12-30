@@ -17,12 +17,12 @@ void parse_object(Token** tokens, JSONNode* root);
 //              *node->values* variable will hold the values of the array.
 //
 void parse_array(Token** tokens, JSONNode* node) {
-    size_t n_values = 0;
     while (tokens) {
+        ++node->n_values;
         node->values =
-            realloc(node->values, (n_values + 1) * sizeof(struct JSONNode));
+            realloc(node->values, node->n_values * sizeof(struct JSONNode));
 
-        JSONNode* value = &(node->values[n_values]);
+        JSONNode* value = &(node->values[node->n_values - 1]);
         memset(value, 0, sizeof(struct JSONNode));
 
         switch ((*tokens)->type) {
@@ -75,7 +75,6 @@ void parse_array(Token** tokens, JSONNode* node) {
         }
 
         if ((*tokens)->type == JSON_TOKEN_COMMA) {
-            ++n_values;
             ++(*tokens);
             continue; // Parse the next array value.
         } else if ((*tokens)->type == JSON_TOKEN_RIGHT_SQUARE_BRACKET) {
@@ -98,12 +97,12 @@ void parse_array(Token** tokens, JSONNode* node) {
 //              *node->members* variable will hold the members of the object.
 //
 void parse_object(Token** tokens, JSONNode* node) {
-    size_t n_members = 0;
     while (*tokens) {
+        ++node->n_members;
         node->members =
-            realloc(node->members, (n_members + 1) * sizeof(struct JSONNode));
+            realloc(node->members, node->n_members * sizeof(struct JSONNode));
 
-        JSONNode* member = &(node->members[n_members]);
+        JSONNode* member = &(node->members[node->n_members - 1]);
         memset(member, 0, sizeof(struct JSONNode));
 
         if ((*tokens)->type != JSON_TOKEN_STRING) {
@@ -165,7 +164,6 @@ void parse_object(Token** tokens, JSONNode* node) {
         }
 
         if ((*tokens)->type == JSON_TOKEN_COMMA) {
-            ++n_members;
             ++(*tokens);
             continue; // Parse next member.
         } else if ((*tokens)->type == JSON_TOKEN_RIGHT_CURLY_BRACKET) {
@@ -183,6 +181,7 @@ void parse_object(Token** tokens, JSONNode* node) {
 void parse(Token* tokens, JSONNode** ast) {
     // At the moment, we only consider our root node can be of type Object.
     *ast = calloc(1, sizeof(JSONNode));
+    memset(*ast, 0, sizeof(JSONNode));
     switch (tokens->type) {
         case (JSON_TOKEN_FALSE): {
             (*ast)->value = JSON_VALUE_FALSE;

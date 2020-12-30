@@ -32,8 +32,14 @@ typedef struct JSONNode {
     // Object members.
     struct JSONNode* members;
 
+    // Number of object members.
+    size_t n_members;
+
     // Array items.
     struct JSONNode* values;
+
+    // Number of array values.
+    size_t n_values;
 
     // Value for tokens of type NUMBER.
     double number_value;
