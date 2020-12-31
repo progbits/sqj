@@ -143,6 +143,7 @@ void parse_object(Token** tokens, JSONNode* node) {
             }
             case (JSON_TOKEN_LEFT_SQUARE_BRACKET): {
                 member->value = JSON_VALUE_ARRAY;
+                ++(*tokens);
                 parse_array(tokens, member);
                 break;
             }
