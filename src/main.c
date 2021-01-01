@@ -256,27 +256,26 @@ int setup_sqlite3(sqlite3* db, ClientData* client_data) {
 }
 
 int main(int argc, char** argv) {
-    // First argument should be a filename.
-    if (argc < 3) {
-        log_and_exit("usage: sqjson INPUT_FILE QUERY\n");
+    if (argc != 2) {
+        const int rc = fprintf(stdout, "sqj - Query JSON with SQL\n"
+                                       "Usage: sqj <SQL> [FILE]\n");
+        exit(rc < 0 ? 2 : 0);
     }
 
-    // Get the size of our input file.
-    FILE* f = fopen(argv[1], "r");
-    fseek(f, 0, SEEK_END);
-    const size_t input_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    // Read stdin to a buffer.
+    char* input_data;
+    size_t input_data_size;
+    FILE* mem_stream = open_memstream(&input_data, &input_data_size);
 
-    // Read our input file.
-    char* input_data = calloc(input_size + 1, sizeof(char));
-    const size_t bytes_read =
-        fread(input_data, sizeof(*input_data), input_size, f);
-    if (bytes_read != input_size) {
-        log_and_exit("failed to read input");
+    char buffer[1024];
+    while (fgets(buffer, sizeof(buffer), stdin)) {
+        fputs(buffer, mem_stream);
     }
+    fflush(mem_stream);
+    fclose(mem_stream);
 
-    // Read our query.
-    char* query = argv[2];
+    // SQL query string should be the first argument.
+    char* query = argv[1];
 
     // Tokenize the input data.
     Token* tokens = NULL;
@@ -305,6 +304,9 @@ int main(int argc, char** argv) {
 
     // Time to wrap it up!.
     sqlite3_close(db);
+
+    // Free our input data buffer.
+    free(input_data);
 
     return 0;
 }
