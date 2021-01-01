@@ -142,7 +142,7 @@ void build_table_schema(JSONNode* ast, JSONTableSchema** schema) {
     collect_columns(&ast->values[0], *schema, "");
 
     // Build our 'CREATE TABLE ...' statement from our columns.
-    const char* create_table = "CREATE TABLE sqjson (";
+    const char* create_table = "CREATE TABLE [] (";
     (*schema)->create_table_statement =
         calloc(strlen(create_table), sizeof(char));
     strcpy((*schema)->create_table_statement, create_table);

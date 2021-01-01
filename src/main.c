@@ -236,7 +236,7 @@ int setup_sqlite3(sqlite3* db, ClientData* client_data) {
     }
 
     char* error_msg;
-    rc = sqlite3_exec(db, "CREATE VIRTUAL TABLE sqjson USING sqjson", NULL,
+    rc = sqlite3_exec(db, "CREATE VIRTUAL TABLE [] USING sqjson", NULL,
                       NULL, &error_msg);
     if (rc != 0) {
         fprintf(stderr, "%s\n", error_msg);
