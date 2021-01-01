@@ -261,8 +261,8 @@ int main(int argc, char** argv) {
     FILE* fin = stdin;
 
     if (argc < 2 || argc > 3) {
-        const int rc = fprintf(stdout, "sqj - Query JSON with SQL\n"
-                                       "Usage: sqj <SQL> [FILE]\n");
+        fprintf(stdout, "sqj - Query JSON with SQL\n"
+                        "Usage: sqj <SQL> [FILE]\n");
         exit(1);
     }
 
