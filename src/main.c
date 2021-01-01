@@ -256,19 +256,32 @@ int setup_sqlite3(sqlite3* db, ClientData* client_data) {
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
+    // Our input file. This could be stdin or a named file. Initially assume
+    // we are working with stdin.
+    FILE* fin = stdin;
+
+    if (argc < 2 || argc > 3) {
         const int rc = fprintf(stdout, "sqj - Query JSON with SQL\n"
                                        "Usage: sqj <SQL> [FILE]\n");
         exit(rc < 0 ? 2 : 0);
     }
 
-    // Read stdin to a buffer.
+    // We have a named file as our input. This might be an actual path or '-'
+    // as an alias for stdin.
+    if (argc > 2 && strcmp(argv[2], "-") != 0) {
+        fin = fopen(argv[2], "r");
+        if (fin == NULL) {
+            log_and_exit("failed to open %s\n", argv[2]);
+        }
+    }
+
+    // Read the input file to a buffer.
     char* input_data;
     size_t input_data_size;
     FILE* mem_stream = open_memstream(&input_data, &input_data_size);
 
     char buffer[1024];
-    while (fgets(buffer, sizeof(buffer), stdin)) {
+    while (fgets(buffer, sizeof(buffer), fin)) {
         fputs(buffer, mem_stream);
     }
     fflush(mem_stream);
