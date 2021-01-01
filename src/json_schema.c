@@ -138,7 +138,7 @@ void build_table_schema(JSONNode* ast, JSONTableSchema** schema) {
 
     // Assume that the first object in the array is representative and use
     // that object to determine the columns of the schema.
-    *schema = calloc(1, sizeof(struct JSONTableSchema));
+    *schema = calloc(1, sizeof(JSONTableSchema));
     collect_columns(&ast->values[0], *schema, "");
 
     // Build our 'CREATE TABLE ...' statement from our columns.
