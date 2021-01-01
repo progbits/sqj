@@ -3,7 +3,10 @@
 
 #include "util.h"
 
-void log_and_exit(const char* message) {
-    fprintf(stderr, "%s", message);
+void log_and_exit(const char* format, ...) {
+    va_list arglist;
+    va_start(arglist, format);
+    vfprintf(stderr, format, arglist);
+    va_end(arglist);
     exit(1);
 }
