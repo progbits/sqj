@@ -161,4 +161,5 @@ void build_table_schema(JSONNode* ast, JSONTableSchema** schema) {
     if (rc != 0) {
         log_and_exit("failed to close memstream\n");
     }
+    free(mem_stream_data);
 }
