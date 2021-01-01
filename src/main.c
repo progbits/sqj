@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
     if (argc < 2 || argc > 3) {
         const int rc = fprintf(stdout, "sqj - Query JSON with SQL\n"
                                        "Usage: sqj <SQL> [FILE]\n");
-        exit(rc < 0 ? 2 : 0);
+        exit(1);
     }
 
     // We have a named file as our input. This might be an actual path or '-'
