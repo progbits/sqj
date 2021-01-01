@@ -142,19 +142,23 @@ void build_table_schema(JSONNode* ast, JSONTableSchema** schema) {
     collect_columns(&ast->values[0], *schema, "");
 
     // Build our 'CREATE TABLE ...' statement from our columns.
-    const char* create_table = "CREATE TABLE [] (";
-    (*schema)->create_table_statement =
-        calloc(strlen(create_table), sizeof(char));
-    strcpy((*schema)->create_table_statement, create_table);
+    char* mem_stream_data = NULL;
+    size_t mem_stream_size = 0;
+    FILE* mem_stream = open_memstream(&mem_stream_data, &mem_stream_size);
+    fputs( "CREATE TABLE [] (", mem_stream);
     for (int i = 0; i < (*schema)->n_columns; i++) {
-        (*schema)->create_table_statement =
-            realloc((*schema)->create_table_statement,
-                    strlen((*schema)->create_table_statement) +
-                        strlen((*schema)->columns[i]) + 1);
-        strcat((*schema)->create_table_statement, (*schema)->columns[i]);
+        fputs((*schema)->columns[i], mem_stream);
         if (i < (*schema)->n_columns - 1) {
-            strcat((*schema)->create_table_statement, ",");
+            fputs(",", mem_stream);
         }
     }
-    strcat((*schema)->create_table_statement, ")");
+    fputs(")", mem_stream);
+    fflush(mem_stream);
+
+    (*schema)->create_table_statement = strdup(mem_stream_data);
+
+    const int rc = fclose(mem_stream);
+    if (rc != 0) {
+        log_and_exit("failed to close memstream\n");
+    }
 }
