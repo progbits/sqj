@@ -268,8 +268,12 @@ int main(int argc, char** argv) {
     fseek(f, 0, SEEK_SET);
 
     // Read our input file.
-    char* input_data = calloc(input_size, sizeof(char));
-    fread(input_data, sizeof(char), input_size, f);
+    char* input_data = calloc(input_size + 1, sizeof(char));
+    const size_t bytes_read =
+        fread(input_data, sizeof(*input_data), input_size, f);
+    if (bytes_read != input_size) {
+        log_and_exit("failed to read input");
+    }
 
     // Read our query.
     char* query = argv[2];
