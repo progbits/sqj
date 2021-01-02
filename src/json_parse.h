@@ -51,4 +51,10 @@ typedef struct JSONNode {
 // Parse a collection of JSON tokens into an AST.
 void parse(Token* tokens, JSONNode** ast);
 
+// Pretty print a JSON AST to a file stream.
+//
+// If compact != 0 then all formatting related whitespace will be omitted from
+// the output.
+void pretty_print(JSONNode* ast, FILE* stream, int compact);
+
 #endif // JSON_PARSE_H

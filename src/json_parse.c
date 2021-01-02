@@ -223,3 +223,103 @@ void parse(Token* tokens, JSONNode** ast) {
         }
     }
 }
+
+void pretty_print_impl(JSONNode* ast, FILE* stream, int compact, int depth) {
+    char* line_terminator = compact ? "" : "\n";
+    char* value_separator = compact ? "" : "  ";
+
+    // Indent to the current depth.
+    if (!compact) {
+        for (int i = 0; i < depth; i++) {
+            fprintf(stream, "%s", value_separator);
+        }
+    }
+
+    char* literal;
+    switch (ast->value) {
+        case (JSON_VALUE_OBJECT): {
+            if (ast->name) {
+                fprintf(stream, "\"%s\":{%s", ast->name, line_terminator);
+            } else {
+                fprintf(stream, "{%s", line_terminator);
+            }
+
+            for (size_t i = 0; i < ast->n_members; i++) {
+                pretty_print_impl(&ast->members[i], stream, compact, depth + 1);
+                if (i < ast->n_members - 1) {
+                    fprintf(stream, ",%s", line_terminator);
+                }
+            }
+            fprintf(stream, "%s", line_terminator);
+
+            for (int i = 0; i < depth; i++) {
+                fprintf(stream, "%s", value_separator);
+            }
+            fprintf(stream, "}%s", depth == 0 ? line_terminator : "");
+            return;
+        }
+        case (JSON_VALUE_ARRAY): {
+            if (ast->name) {
+                fprintf(stream, "\"%s\":[%s", ast->name, line_terminator);
+            } else {
+                fprintf(stream, "[%s", line_terminator);
+            }
+
+            for (size_t i = 0; i < ast->n_values; i++) {
+                pretty_print_impl(&ast->values[i], stream, compact, depth + 1);
+                if (i < ast->n_values - 1) {
+                    fprintf(stream, ",%s", line_terminator);
+                }
+            }
+            fprintf(stream, "%s", line_terminator);
+
+            for (int i = 0; i < depth; i++) {
+                fprintf(stream, "%s", value_separator);
+            }
+            fprintf(stream, "]%s", depth == 0 ? line_terminator : "");
+            return;
+        }
+        case (JSON_VALUE_NUMBER): {
+            if (ast->name) {
+                fprintf(stream, "\"%s\":\"%f\"", ast->name, ast->number_value);
+            } else {
+                fprintf(stream, "\"%f\"", ast->number_value);
+            }
+            return;
+        }
+        case (JSON_VALUE_STRING): {
+            if (ast->name) {
+                fprintf(stream, "\"%s\":\"%s\"", ast->name, ast->string_value);
+            } else {
+                fprintf(stream, "\"%s\"", ast->string_value);
+            }
+            return;
+        }
+        case (JSON_VALUE_NULL): {
+            literal = "null";
+            break;
+        }
+        case (JSON_VALUE_TRUE): {
+            literal = "true";
+            break;
+        }
+        case (JSON_VALUE_FALSE): {
+            literal = "false";
+            break;
+        }
+        default: {
+            log_and_exit("unexpected value\n");
+        }
+    }
+
+    // Handle literal values.
+    if (ast->name) {
+        fprintf(stream, "\"%s\":%s", ast->name, literal);
+    } else {
+        fprintf(stream, "%s", literal);
+    }
+}
+
+void pretty_print(JSONNode* ast, FILE* stream, int compact) {
+    pretty_print_impl(ast, stream, compact, 0);
+}
