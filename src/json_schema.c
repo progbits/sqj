@@ -9,6 +9,24 @@ typedef struct Columns {
     size_t n_columns;
 } Columns;
 
+// Add a new column to a JSON based table schema.
+//
+// If a prefix is specified, the column is added as 'prefix$column'.
+void add_schema_column(JSONTableSchema* schema, char* prefix, char* column) {
+    ++schema->n_columns;
+    schema->columns =
+        realloc(schema->columns, schema->n_columns * sizeof(char*));
+    const size_t column_size =
+        strlen(prefix) + strlen(column) + strlen("$") + 1;
+    schema->columns[schema->n_columns - 1] =
+        calloc(column_size, sizeof(char));
+    strcpy(schema->columns[schema->n_columns - 1], prefix);
+    if (strlen(prefix) > 0) {
+        strcat(schema->columns[schema->n_columns - 1], "$");
+    }
+    strcat(schema->columns[schema->n_columns - 1], column);
+}
+
 // Extract table column names from a JSON AST.
 void collect_columns(JSONNode* ast, JSONTableSchema* schema, char* prefix) {
     if (ast == NULL) {
@@ -29,6 +47,9 @@ void collect_columns(JSONNode* ast, JSONTableSchema* schema, char* prefix) {
                     strcat(new_prefix, "$");
                 }
                 strcat(new_prefix, ast->name);
+
+                // We also register the object itself as a column.
+                add_schema_column(schema, prefix, ast->name);
             }
 
             for (int i = 0; i < ast->n_members; i++) {
@@ -43,18 +64,7 @@ void collect_columns(JSONNode* ast, JSONTableSchema* schema, char* prefix) {
         case (JSON_VALUE_NULL):
         case (JSON_VALUE_TRUE):
         case (JSON_VALUE_FALSE): {
-            ++schema->n_columns;
-            schema->columns =
-                realloc(schema->columns, schema->n_columns * sizeof(char*));
-            const size_t column_size =
-                strlen(prefix) + strlen(ast->name) + strlen("$") + 1;
-            schema->columns[schema->n_columns - 1] =
-                calloc(column_size, sizeof(char));
-            strcpy(schema->columns[schema->n_columns - 1], prefix);
-            if (strlen(prefix) > 0) {
-                strcat(schema->columns[schema->n_columns - 1], "$");
-            }
-            strcat(schema->columns[schema->n_columns - 1], ast->name);
+            add_schema_column(schema, prefix, ast->name);
             break;
         }
         default: {
@@ -84,6 +94,11 @@ void extract_column_impl(JSONNode* ast, JSONNode** result, char* prefix,
                     strcat(new_prefix, "$");
                 }
                 strcat(new_prefix, ast->name);
+            }
+
+            if (strcmp(new_prefix, target) == 0) {
+                *result = ast;
+                break;
             }
 
             for (int i = 0; i < ast->n_members; i++) {
