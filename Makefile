@@ -1,10 +1,15 @@
+ifeq ($(PREFIX),)
+    PREFIX := /usr/local/bin
+endif
+
 BINARY = sqj
 
-.PHONY: sqjson test-tokenize test-parse test-integration test dir clean
+.PHONY: sqjson test-tokenize test-parse test-integration test install clean
 
 .DEFAULT_GOAL := sqjson
 
-sqjson: dir src/main.c src/json_tokenize.c src/json_parse.c src/json_schema.c src/util.c
+sqjson: src/main.c src/json_tokenize.c src/json_parse.c src/json_schema.c src/util.c
+	@mkdir -p bin
 	clang -g -O3 -lsqlite3 -o bin/$(BINARY) src/main.c src/json_tokenize.c src/json_parse.c src/json_schema.c src/util.c
 
 test-tokenize: test/test_json_tokenize.c src/json_tokenize.c
@@ -19,8 +24,9 @@ test-integration: sqjson
 test: test-tokenize test-parse test-integration
 	./bin/test-tokenize && ./bin/test-parse
 
-dir:
-	mkdir -p bin
+install:
+	install -d $(DESTDIR)$(PREFIX)
+	install -m 755 ./bin/sqj $(DESTDIR)$(PREFIX)
 
 clean:
 	rm -rf bin
