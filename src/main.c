@@ -113,8 +113,7 @@ int xNext(sqlite3_vtab_cursor* pVtabCursor) {
 
 int xEof(sqlite3_vtab_cursor* pVtabCursor) {
     json_vtab_cursor* cursor = (json_vtab_cursor*)pVtabCursor;
-    const int done = cursor->row >= cursor->client_data->ast->n_values;
-    return done;
+    return cursor->row >= cursor->client_data->ast->n_values;
 }
 
 int xColumn(sqlite3_vtab_cursor* pVtabCursor, sqlite3_context* pContext,
