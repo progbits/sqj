@@ -8,23 +8,57 @@
 #include "json_virtual_table.h"
 #include "util.h"
 
-int main(int argc, char** argv) {
-    // Our input file. This could be stdin or a named file. Initially assume
-    // we are working with stdin.
-    FILE* fin = stdin;
+typedef struct ShellOptions {
+    int compact;
+} ShellOptions;
 
-    if (argc < 2 || argc > 3) {
-        fprintf(stdout, "sqj - Query JSON with SQL\n"
-                        "Usage: sqj <SQL> [FILE]\n");
-        exit(EXIT_FAILURE);
+// Print usage information and exit.
+void usage() {
+    fprintf(stdout,
+            "Usage: sqj [OPTION]... <SQL> [FILE]...\n"
+            "Query JSON with SQL.\n"
+            "\n"
+            "\t--help    Display this message and exit\n"
+            "\t--compact Format output without any extraneous whitespace\n");
+    exit(EXIT_FAILURE);
+}
+
+int main(int argc, char** argv) {
+    // Fail early for obviously invalid usage.
+    if (argc < 2) {
+        usage();
     }
 
-    // We have a named file as our input. This might be an actual path or '-'
-    // as an alias for stdin.
-    if (argc > 2 && strcmp(argv[2], "-") != 0) {
-        fin = fopen(argv[2], "r");
+    // Parse command line options.
+    ShellOptions shell_options = {};
+    int i;
+    for (i = 1; i < argc; i++) {
+        char* z = argv[i];
+        if (z[0] != '-') {
+            break; // End of options.
+        }
+        if (z[1] == '-') {
+            ++z; // Trim long options.
+        }
+
+        if (strcmp(z, "-help") == 0) {
+            usage();
+        } else if (strcmp(z, "-compact") == 0) {
+            shell_options.compact = 1;
+        }
+    }
+
+    // The query string should be the first argument after options.
+    char* query = argv[i++];
+
+    // Excess arguments after the query string are treated as files and mean we
+    // do not read from stdin. A single file named "-" is  treated as an alias
+    // for stdin.
+    FILE* fin = stdin;
+    if (i < argc && strcmp(argv[i], "-") != 0) {
+        fin = fopen(argv[i], "r");
         if (fin == NULL) {
-            log_and_exit("failed to open %s\n", argv[2]);
+            log_and_exit("failed to open %s\n", argv[i]);
         }
     }
 
@@ -40,9 +74,6 @@ int main(int argc, char** argv) {
     fflush(mem_stream);
     fclose(mem_stream);
 
-    // SQL query string should be the first argument.
-    char* query = argv[1];
-
     // Tokenize the input data.
     Token* tokens = NULL;
     size_t n_tokens = 0;
@@ -51,6 +82,12 @@ int main(int argc, char** argv) {
     // Parse our input.
     JSONNode* ast;
     parse(tokens, &ast);
+
+    // Exit early if our input is empty.
+    if (ast->n_values == 0) {
+        pretty_print(ast, stdout, shell_options.compact);
+        exit(EXIT_SUCCESS);
+    }
 
     // Build the 'CREATE TABLE ...' statement.
     JSONTableSchema* schema;
@@ -78,6 +115,9 @@ int main(int argc, char** argv) {
         sqlite3_close(db);
         return EXIT_FAILURE;
     }
+
+    // Output the results.
+    pretty_print(client_data.result_ast, stdout, shell_options.compact);
 
     // Time to wrap it up!. Close our database connection and free our input
     // buffer.

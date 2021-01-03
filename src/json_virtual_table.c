@@ -27,19 +27,52 @@ void debug_print(sqlite3_index_info* info) {
 
 int row_callback(void* pArg, int argc, char** argv, char** columnNames) {
     ClientData* client_data = (ClientData*)pArg;
-    if (client_data->columns_written == 0) {
-        for (int i = 0; i < argc - 1; i++) {
-            printf("%s,", columnNames[i]);
-        }
-        printf("%s\n", columnNames[argc - 1]);
-        client_data->columns_written = 1;
+    if (!client_data->result_ast) {
+        client_data->result_ast = calloc(1, sizeof(JSONNode));
+        client_data->result_ast->value = JSON_VALUE_ARRAY;
     }
 
-    for (int i = 0; i < argc - 1; i++) {
-        JSONNode* result_node;
-        printf("%s,", argv[i]);
+    // Create a new object to hold the current record.
+    ++client_data->result_ast->n_values;
+    client_data->result_ast->values =
+        realloc(client_data->result_ast->values,
+                client_data->result_ast->n_values * sizeof(JSONNode));
+    memset(
+        &client_data->result_ast->values[client_data->result_ast->n_values - 1],
+        0, sizeof(JSONNode));
+
+    JSONNode* result_object =
+        &client_data->result_ast->values[client_data->result_ast->n_values - 1];
+    result_object->value = JSON_VALUE_OBJECT;
+    for (int i = 0; i < argc; i++) {
+        ++result_object->n_members;
+        result_object->members =
+            realloc(result_object->members,
+                    result_object->n_members * sizeof(struct JSONNode));
+
+        JSONNode* member = NULL;
+        extract_column(&client_data->ast->values[client_data->row], &member,
+                       columnNames[i]);
+        result_object->members[result_object->n_members - 1] = *member;
+        int i = 0;
     }
-    printf("%s\n", argv[argc - 1]);
+    /*
+        JSONNode* column_node;
+        extract_column(client_data->ast->values[client_data->row], &col)
+
+            if (client_data->columns_written == 0) {
+            for (int i = 0; i < argc - 1; i++) {
+                printf("%s,", columnNames[i]);
+            }
+            printf("%s\n", columnNames[argc - 1]);
+            client_data->columns_written = 1;
+        }
+
+        for (int i = 0; i < argc - 1; i++) {
+            JSONNode* result_node;
+            printf("%s,", argv[i]);
+        }
+        printf("%s\n", argv[argc - 1]);*/
     return 0;
 }
 
@@ -96,7 +129,8 @@ int xFilter(sqlite3_vtab_cursor* pVtabCursor, int idxNum, const char* idxStr,
 
 int xNext(sqlite3_vtab_cursor* pVtabCursor) {
     json_vtab_cursor* cursor = (json_vtab_cursor*)pVtabCursor;
-    (cursor->row)++;
+    ++(cursor->row);
+    ++(cursor->client_data->row);
     return SQLITE_OK;
 }
 
@@ -119,7 +153,16 @@ int xColumn(sqlite3_vtab_cursor* pVtabCursor, sqlite3_context* pContext,
     switch (ast_node->value) {
         case JSON_VALUE_OBJECT:
         case JSON_VALUE_ARRAY: {
-            log_and_exit("unsupported column value\n");
+            // Stringify object or array.
+            char* buffer;
+            size_t buffer_size;
+            FILE* memstream = open_memstream(&buffer, &buffer_size);
+            pretty_print(ast_node, memstream, 0);
+            fclose(memstream);
+
+            // Copy the result text to an SQLite owned block and free our copy.
+            sqlite3_result_text(pContext, buffer, -1, SQLITE_TRANSIENT);
+            free(buffer);
             break;
         }
         case JSON_VALUE_NUMBER: {

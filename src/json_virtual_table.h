@@ -8,9 +8,11 @@
 
 typedef struct ClientData {
     JSONNode* ast;
+    JSONNode* result_ast;
     JSONTableSchema* schema;
     char* query;
     int columns_written;
+    int row;
 } ClientData;
 
 int setup_virtual_table(sqlite3* db, ClientData* client_data);
