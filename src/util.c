@@ -8,5 +8,5 @@ void log_and_exit(const char* format, ...) {
     va_start(arglist, format);
     vfprintf(stderr, format, arglist);
     va_end(arglist);
-    exit(1);
+    exit(EXIT_FAILURE);
 }
