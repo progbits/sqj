@@ -281,9 +281,9 @@ void pretty_print_impl(JSONNode* ast, FILE* stream, int compact, int depth) {
         }
         case (JSON_VALUE_NUMBER): {
             if (ast->name) {
-                fprintf(stream, "\"%s\":\"%f\"", ast->name, ast->number_value);
+                fprintf(stream, "\"%s\":%g", ast->name, ast->number_value);
             } else {
-                fprintf(stream, "\"%f\"", ast->number_value);
+                fprintf(stream, "\"%g\"", ast->number_value);
             }
             return;
         }
