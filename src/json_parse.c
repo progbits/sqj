@@ -325,6 +325,47 @@ void pretty_print_impl(JSONNode* ast, FILE* stream, int compact, int depth) {
     }
 }
 
+void delete_ast(JSONNode* ast) {
+    if (ast == NULL) {
+        return;
+    }
+
+    switch (ast->value) {
+        case (JSON_VALUE_OBJECT): {
+            JSONNode* block = ast->members;
+            for (size_t i = 0; i < ast->n_members; i++) {
+                delete_ast(&ast->members[i]);
+            }
+            free(block);
+            break;
+        }
+        case (JSON_VALUE_ARRAY): {
+            JSONNode* block = ast->values;
+            for (size_t i = 0; i < ast->n_values; i++) {
+                delete_ast(&ast->values[ast->n_values - i - 1]);
+            }
+            free(block);
+            break;
+        }
+        case (JSON_VALUE_NUMBER):
+        case (JSON_VALUE_STRING):
+        case (JSON_VALUE_NULL):
+        case (JSON_VALUE_TRUE):
+        case (JSON_VALUE_FALSE):
+            break;
+        default:
+            log_and_exit("unexpected value\n");
+    }
+
+    if (ast->name) {
+        free(ast->name);
+    }
+
+    if (ast->string_value) {
+        free(ast->string_value);
+    }
+}
+
 void pretty_print(JSONNode* ast, FILE* stream, int compact) {
     pretty_print_impl(ast, stream, compact, 0);
 }
