@@ -17,6 +17,11 @@ void parse_object(Token** tokens, JSONNode* root);
 //              *node->values* variable will hold the values of the array.
 //
 void parse_array(Token** tokens, JSONNode* node) {
+    // Exit early for empty arrays.
+    if ((*tokens)->type == JSON_TOKEN_RIGHT_SQUARE_BRACKET) {
+        return;
+    }
+
     while (tokens) {
         ++node->n_values;
         node->values =
