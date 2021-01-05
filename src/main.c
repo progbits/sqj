@@ -71,7 +71,6 @@ int main(int argc, char** argv) {
     while (fgets(buffer, sizeof(buffer), fin)) {
         fputs(buffer, mem_stream);
     }
-    fflush(mem_stream);
     fclose(mem_stream);
 
     // Tokenize the input data.
@@ -86,6 +85,8 @@ int main(int argc, char** argv) {
     // Exit early if our input is empty.
     if (ast->n_values == 0) {
         pretty_print(ast, stdout, shell_options.compact);
+        free(input_data);
+        free(tokens);
         exit(EXIT_SUCCESS);
     }
 
