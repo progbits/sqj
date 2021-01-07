@@ -73,7 +73,7 @@ int xCreate(sqlite3* db, void* pAux, int argc, const char* const* argv,
     }
 
     // Allocate a new json_vtab instance.
-    json_vtab* vtab = (json_vtab*)sqlite3_malloc(sizeof(json_vtab));
+    json_vtab* vtab = calloc(1, sizeof(json_vtab));
     vtab->client_data = client_data;
     *ppVTab = &vtab->base;
 
@@ -90,20 +90,29 @@ int xBestIndex(sqlite3_vtab* pVTab, sqlite3_index_info* pIndexInfo) {
     return SQLITE_OK;
 }
 
-int xDisconnect(sqlite3_vtab* pVTab) { return SQLITE_OK; }
+int xDisconnect(sqlite3_vtab* pVTab) {
+    free(pVTab);
+    return SQLITE_OK;
+}
 
-int xDestroy(sqlite3_vtab* pVTab) { return SQLITE_OK; }
+int xDestroy(sqlite3_vtab* pVTab) {
+    free(pVTab);
+    return SQLITE_OK;
+}
 
 int xOpen(sqlite3_vtab* pVTab, sqlite3_vtab_cursor** ppCursor) {
     // Open a new cursor.
-    json_vtab_cursor* cursor = sqlite3_malloc(sizeof(json_vtab_cursor));
+    json_vtab_cursor* cursor = calloc(1, sizeof(json_vtab_cursor));
     memset(cursor, 0, sizeof(json_vtab_cursor));
     cursor->client_data = ((json_vtab*)pVTab)->client_data;
     *ppCursor = (sqlite3_vtab_cursor*)cursor;
     return SQLITE_OK;
 }
 
-int xClose(sqlite3_vtab_cursor* pVtabCursor) { return SQLITE_OK; }
+int xClose(sqlite3_vtab_cursor* pVtabCursor) {
+    free(pVtabCursor);
+    return SQLITE_OK;
+}
 
 int xFilter(sqlite3_vtab_cursor* pVtabCursor, int idxNum, const char* idxStr,
             int argc, sqlite3_value** argv) {
