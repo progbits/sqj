@@ -25,8 +25,8 @@ void debug_print(sqlite3_index_info* info) {
     printf("=== debug_print sqlite3_index_info ===\n");
 }
 
-int row_callback(void* pArg, int argc, char** argv, char** columnNames) {
-    ClientData* client_data = (ClientData*)pArg;
+int row_callback(ClientData* client_data) {
+    int column_count = sqlite3_column_count(client_data->stmt);
 
     // We should probably handle this allocation when we construct the
     // ClientData instance.
@@ -47,17 +47,60 @@ int row_callback(void* pArg, int argc, char** argv, char** columnNames) {
     JSONNode* result_object =
         &client_data->result_ast->values[client_data->result_ast->n_values - 1];
     result_object->value = JSON_VALUE_OBJECT;
-    for (int i = 0; i < argc; i++) {
+    for (int i = 0; i < column_count; i++) {
         ++result_object->n_members;
         result_object->members =
             realloc(result_object->members,
                     result_object->n_members * sizeof(struct JSONNode));
 
+        const char* column_name = sqlite3_column_name(client_data->stmt, i);
+
         JSONNode* source_node = NULL;
         extract_column(&client_data->ast->values[client_data->row],
-                       &source_node, columnNames[i]);
-        deep_clone(source_node,
-                   &result_object->members[result_object->n_members - 1]);
+                       &source_node, column_name);
+
+        if (!source_node) {
+            // At the moment, we assume that this is the result of an aliased
+            // expression. However, it could be a column that hasn't been
+            // registered in our schema. We should use sqlite3_column_type(...)
+            // to get the actual type of the column.
+            const int column_type = sqlite3_column_type(client_data->stmt, i);
+            switch (column_type) {
+                case SQLITE_INTEGER:
+                case SQLITE_FLOAT: {
+                    result_object->members[result_object->n_members - 1].value =
+                        JSON_VALUE_NUMBER;
+                    result_object->members[result_object->n_members - 1]
+                        .number_value =
+                        sqlite3_column_double(client_data->stmt, i);
+                    break;
+                }
+                case SQLITE_TEXT: {
+                    result_object->members[result_object->n_members - 1].value =
+                        JSON_VALUE_STRING;
+                    result_object->members[result_object->n_members - 1].name =
+                        strdup(column_name);
+                    result_object->members[result_object->n_members - 1]
+                        .string_value =
+                        strdup(sqlite3_column_text(client_data->stmt, i));
+                    break;
+                }
+                case SQLITE_BLOB: {
+                    log_and_exit("handle values of type SQLITE_BLOB\n");
+                }
+                case SQLITE_NULL: {
+                    result_object->members[result_object->n_members - 1].value =
+                        JSON_VALUE_NULL;
+                    break;
+                }
+                default: {
+                    log_and_exit("unknown value\n");
+                }
+            }
+        } else {
+            deep_clone(source_node,
+                       &result_object->members[result_object->n_members - 1]);
+        }
     }
 
     return SQLITE_OK;
@@ -282,12 +325,16 @@ int exec(ClientData* client_data) {
         return rc;
     }
 
-    rc = sqlite3_exec(db, client_data->query, &row_callback, (void*)client_data,
-                      NULL);
+    rc = sqlite3_prepare_v2(db, client_data->query, strlen(client_data->query),
+                            &client_data->stmt, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "something went wrong\n");
         sqlite3_close(db);
         return rc;
+    }
+
+    while (sqlite3_step(client_data->stmt) == SQLITE_ROW) {
+        row_callback(client_data);
     }
 
     sqlite3_close(db);

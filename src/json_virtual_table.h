@@ -11,6 +11,7 @@ typedef struct ClientData {
     JSONNode* result_ast;
     JSONTableSchema* schema;
     char* query;
+    sqlite3_stmt* stmt;
     int columns_written;
     int row;
 } ClientData;
