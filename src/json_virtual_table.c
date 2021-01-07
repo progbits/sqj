@@ -27,6 +27,9 @@ void debug_print(sqlite3_index_info* info) {
 
 int row_callback(void* pArg, int argc, char** argv, char** columnNames) {
     ClientData* client_data = (ClientData*)pArg;
+
+    // We should probably handle this allocation when we construct the
+    // ClientData instance.
     if (!client_data->result_ast) {
         client_data->result_ast = calloc(1, sizeof(JSONNode));
         client_data->result_ast->value = JSON_VALUE_ARRAY;
@@ -50,10 +53,11 @@ int row_callback(void* pArg, int argc, char** argv, char** columnNames) {
             realloc(result_object->members,
                     result_object->n_members * sizeof(struct JSONNode));
 
-        JSONNode* member = NULL;
-        extract_column(&client_data->ast->values[client_data->row], &member,
-                       columnNames[i]);
-        result_object->members[result_object->n_members - 1] = *member;
+        JSONNode* source_node = NULL;
+        extract_column(&client_data->ast->values[client_data->row],
+                       &source_node, columnNames[i]);
+        deep_clone(source_node,
+                   &result_object->members[result_object->n_members - 1]);
     }
 
     return SQLITE_OK;
