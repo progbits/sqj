@@ -126,6 +126,7 @@ void extract_column_impl(JSONNode* ast, JSONNode** result, char* prefix,
             if (strcmp(column_name, target) == 0) {
                 *result = ast;
             }
+            free(column_name);
             break;
         }
         default: {
