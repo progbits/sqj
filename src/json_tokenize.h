@@ -40,6 +40,8 @@ typedef struct Token {
 //      - Handle escaped chars.
 void tokenize(const char* input, Token** tokens, size_t* n_tokens);
 
+void delete_tokens(Token* tokens, size_t n_tokens);
+
 // Pretty print a token and its value, if it has one.
 void print_json_token(Token* token);
 

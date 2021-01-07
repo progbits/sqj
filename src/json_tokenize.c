@@ -184,4 +184,12 @@ void tokenize(const char* input, Token** tokens, size_t* n_tokens) {
         exit(1);
     }
 }
+
+void delete_tokens(Token* tokens, size_t n_tokens) {
+    for (size_t i = 0; i < n_tokens; i++) {
+        if (tokens[i].type == JSON_TOKEN_STRING) {
+            free(tokens[i].string);
+        }
+    }
+    free(tokens);
 }
