@@ -179,3 +179,12 @@ void build_table_schema(JSONNode* ast, JSONTableSchema** schema) {
     }
     free(mem_stream_data);
 }
+
+void delete_table_schema(JSONTableSchema* schema) {
+    free(schema->create_table_statement);
+    for (size_t i = 0; i < schema->n_columns; i++) {
+        free(schema->columns[i]);
+    }
+    free(schema->columns);
+    free(schema);
+}
