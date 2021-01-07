@@ -91,11 +91,11 @@ int starts_with(const char* prefix, const char* string) {
 }
 
 void tokenize(const char* input, Token** tokens, size_t* n_tokens) {
-    size_t allocated = 0;
+    *n_tokens = 0;
     while (*input != '\0') {
         // Allocate some space for the next token.
-        *tokens = realloc(*tokens, (allocated + 1) * sizeof(Token));
-        Token* token = &((*tokens)[allocated++]);
+        *tokens = realloc(*tokens, (*n_tokens + 1) * sizeof(Token));
+        Token* token = &((*tokens)[(*n_tokens)++]);
 
         // Skip whitespace.
         while (is_json_whitespace(input)) {
@@ -183,5 +183,5 @@ void tokenize(const char* input, Token** tokens, size_t* n_tokens) {
         fprintf(stderr, "tokenization failed!\n");
         exit(1);
     }
-    *n_tokens = allocated;
+}
 }
