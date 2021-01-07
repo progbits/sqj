@@ -54,26 +54,9 @@ int row_callback(void* pArg, int argc, char** argv, char** columnNames) {
         extract_column(&client_data->ast->values[client_data->row], &member,
                        columnNames[i]);
         result_object->members[result_object->n_members - 1] = *member;
-        int i = 0;
     }
-    /*
-        JSONNode* column_node;
-        extract_column(client_data->ast->values[client_data->row], &col)
 
-            if (client_data->columns_written == 0) {
-            for (int i = 0; i < argc - 1; i++) {
-                printf("%s,", columnNames[i]);
-            }
-            printf("%s\n", columnNames[argc - 1]);
-            client_data->columns_written = 1;
-        }
-
-        for (int i = 0; i < argc - 1; i++) {
-            JSONNode* result_node;
-            printf("%s,", argv[i]);
-        }
-        printf("%s\n", argv[argc - 1]);*/
-    return 0;
+    return SQLITE_OK;
 }
 
 int xCreate(sqlite3* db, void* pAux, int argc, const char* const* argv,
