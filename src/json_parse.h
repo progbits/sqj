@@ -51,6 +51,9 @@ typedef struct JSONNode {
 // Parse a collection of JSON tokens into an AST.
 void parse(Token* tokens, JSONNode** ast);
 
+// Deep clone an AST node.
+void deep_clone(JSONNode* src, JSONNode* dest);
+
 // Clean up memory allocated for an AST.
 void delete_ast(JSONNode* ast);
 

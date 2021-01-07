@@ -5,6 +5,42 @@
 
 void parse_object(Token** tokens, JSONNode* root);
 
+void deep_clone(JSONNode* src, JSONNode* dest) {
+    *dest = *src;
+    if (src->name) {
+        dest->name = strdup(src->name);
+    }
+
+    switch (src->value) {
+        case (JSON_VALUE_OBJECT): {
+            dest->members = calloc(dest->n_members, sizeof(JSONNode));
+            for (size_t i = 0; i < dest->n_members; i++) {
+                deep_clone(&src->members[i], &dest->members[i]);
+            }
+            break;
+        }
+        case (JSON_VALUE_ARRAY): {
+            dest->values = calloc(dest->n_values, sizeof(JSONNode));
+            for (size_t i = 0; i < dest->n_values; i++) {
+                deep_clone(&src->values[i], &dest->values[i]);
+            }
+            break;
+        }
+        case (JSON_VALUE_NUMBER):
+            break;
+        case (JSON_VALUE_STRING): {
+            dest->string_value = strdup(src->string_value);
+            break;
+        }
+        case (JSON_VALUE_NULL):
+        case (JSON_VALUE_TRUE):
+        case (JSON_VALUE_FALSE):
+            break;
+        default:
+            log_and_exit("unexpected value\n");
+    }
+}
+
 // Parse an array.
 //
 // When invoked, *tokens* should point to the first token after the opening
