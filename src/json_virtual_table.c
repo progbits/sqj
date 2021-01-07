@@ -222,39 +222,38 @@ int xRollbackTo(sqlite3_vtab* pVTab, int n) { return SQLITE_OK; }
 
 int xShadowName(const char* name) { return SQLITE_OK; }
 
-int setup_virtual_table(sqlite3* db, ClientData* client_data) {
-    // Register virtual table methods.
-    sqlite3_module* json_vtab = calloc(1, sizeof(sqlite3_module));
-    json_vtab->iVersion = 0;
-    json_vtab->xCreate = &xCreate;
-    json_vtab->xConnect = &xConnect;
-    json_vtab->xBestIndex = &xBestIndex;
-    json_vtab->xDisconnect = &xDisconnect;
-    json_vtab->xDestroy = &xDestroy;
-    json_vtab->xOpen = &xOpen;
-    json_vtab->xClose = &xClose;
-    json_vtab->xFilter = &xFilter;
-    json_vtab->xNext = &xNext;
-    json_vtab->xEof = &xEof;
-    json_vtab->xColumn = &xColumn;
-    json_vtab->xRowid = &xRowid;
-    json_vtab->xUpdate = &xUpdate;
-    json_vtab->xBegin = &xBegin;
-    json_vtab->xSync = &xSync;
-    json_vtab->xCommit = &xCommit;
-    json_vtab->xRollback = &xRollback;
-    json_vtab->xFindFunction = &xFindFunction;
-    json_vtab->xRename = &xRename;
-    json_vtab->xSavepoint = &xSavepoint;
-    json_vtab->xRelease = &xRelease;
-    json_vtab->xRollbackTo = &xRollbackTo;
-    json_vtab->xShadowName = &xShadowName;
+static sqlite3_module module = {
+    0, // iVersion
+    xCreate,
+    xConnect,
+    xBestIndex,
+    xDisconnect,
+    xDestroy,
+    xOpen,
+    xClose,
+    xFilter,
+    xNext,
+    xEof,
+    xColumn,
+    xRowid,
+    NULL,          // xUpdate
+    NULL,          // xBegin
+    NULL,          // xSync
+    NULL,          // xCommit
+    NULL,          // xRollback
+    xFindFunction, // xFindFunction
+    NULL,          // xRename
+    NULL,          // xSavepoint
+    NULL,          // xRelease
+    NULL           // xRollbackto
+};
 
+int setup_virtual_table(sqlite3* db, ClientData* client_data) {
     int rc = SQLITE_OK;
 
     // Register the module.
     const char* module_name = "sqjson";
-    rc = sqlite3_create_module(db, module_name, json_vtab, (void*)client_data);
+    rc = sqlite3_create_module(db, module_name, &module, (void*)client_data);
     if (rc != SQLITE_OK) {
         return rc;
     }
@@ -265,10 +264,36 @@ int setup_virtual_table(sqlite3* db, ClientData* client_data) {
     if (rc != SQLITE_OK) {
         return rc;
     }
+
     return SQLITE_OK;
 }
 
-int exec(sqlite3* db, ClientData* client_data) {
-    return sqlite3_exec(db, client_data->query, &row_callback,
-                        (void*)client_data, NULL);
+int exec(ClientData* client_data) {
+    int rc = SQLITE_OK;
+
+    sqlite3* db = NULL;
+    rc = sqlite3_open(":memory:", &db);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "failed to open in-memory database\n");
+        sqlite3_close(db);
+        return rc;
+    }
+
+    rc = setup_virtual_table(db, client_data);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "something went wrong\n");
+        sqlite3_close(db);
+        return rc;
+    }
+
+    rc = sqlite3_exec(db, client_data->query, &row_callback, (void*)client_data,
+                      NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "something went wrong\n");
+        sqlite3_close(db);
+        return rc;
+    }
+
+    sqlite3_close(db);
+    return rc;
 }

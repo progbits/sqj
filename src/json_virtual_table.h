@@ -15,8 +15,6 @@ typedef struct ClientData {
     int row;
 } ClientData;
 
-int setup_virtual_table(sqlite3* db, ClientData* client_data);
-
-int exec(sqlite3* db, ClientData* client_data);
+int exec(ClientData* client_data);
 
 #endif /// JSON_VIRTUAL_TABLE_H

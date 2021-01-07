@@ -97,33 +97,19 @@ int main(int argc, char** argv) {
     // Create a new ClientData instance to register with our module.
     ClientData client_data = {.ast = ast, .schema = schema, .query = query};
 
-    // Setup a new database instance.
-    sqlite3* db = NULL;
-    if (sqlite3_open(":memory:", &db) != SQLITE_OK) {
-        fprintf(stderr, "failed to open in-memory database\n");
-        sqlite3_close(db);
-        return EXIT_FAILURE;
-    }
-
-    if (setup_virtual_table(db, &client_data) != SQLITE_OK) {
-        fprintf(stderr, "failed to setup database\n");
-        sqlite3_close(db);
-        return EXIT_FAILURE;
-    }
-
-    if (exec(db, &client_data) != SQLITE_OK) {
+    // Query the table.
+    if (exec(&client_data)) {
         fprintf(stderr, "failed to run query\n");
-        sqlite3_close(db);
         return EXIT_FAILURE;
     }
 
     // Output the results.
     pretty_print(client_data.result_ast, stdout, shell_options.compact);
 
-    // Time to wrap it up!. Close our database connection and free our input
-    // buffer.
-    sqlite3_close(db);
-    free(input_data);
+    // Time to wrap it up!.
+    delete_ast(ast);
+    free(ast);
+    free(client_data.result_ast);
 
     return EXIT_SUCCESS;
 }
