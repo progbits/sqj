@@ -107,8 +107,14 @@ int main(int argc, char** argv) {
     pretty_print(client_data.result_ast, stdout, shell_options.compact);
 
     // Time to wrap it up!.
+    free(input_data);
+    delete_tokens(tokens, n_tokens);
+    delete_table_schema(schema);
+
     delete_ast(ast);
     free(ast);
+
+    delete_ast(client_data.result_ast);
     free(client_data.result_ast);
 
     return EXIT_SUCCESS;
