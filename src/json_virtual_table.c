@@ -94,7 +94,7 @@ int row_callback(ClientData* client_data) {
                     break;
                 }
                 default: {
-                    log_and_exit("unknown value\n");
+                    return SQLITE_FAIL;
                 }
             }
         } else {
@@ -334,7 +334,10 @@ int exec(ClientData* client_data) {
     }
 
     while (sqlite3_step(client_data->stmt) == SQLITE_ROW) {
-        row_callback(client_data);
+        rc = row_callback(client_data);
+        if (rc != SQLITE_OK) {
+            break;
+        }
     }
 
     sqlite3_finalize(client_data->stmt);
