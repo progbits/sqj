@@ -115,7 +115,7 @@ void build_table_schema(JSONNode* ast, JSONTableSchema** schema) {
     char* mem_stream_data = NULL;
     size_t mem_stream_size = 0;
     FILE* mem_stream = open_memstream(&mem_stream_data, &mem_stream_size);
-    fputs( "CREATE TABLE [] (", mem_stream);
+    fputs("CREATE TABLE [] (", mem_stream);
     for (int i = 0; i < (*schema)->n_columns; i++) {
         fputs((*schema)->columns[i], mem_stream);
         if (i < (*schema)->n_columns - 1) {
