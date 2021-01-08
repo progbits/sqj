@@ -337,6 +337,7 @@ int exec(ClientData* client_data) {
         row_callback(client_data);
     }
 
+    sqlite3_finalize(client_data->stmt);
     sqlite3_close(db);
     return rc;
 }
