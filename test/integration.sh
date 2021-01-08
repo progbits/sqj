@@ -45,3 +45,8 @@ sqj="${root}/bin/sqj"
     [ "${result}" == "${expected}" ]
 }
 
+@test "select based on JSON boolean condition" {
+    result=$(cat "${root}/test/data/array_with_nested.json" | "${sqj}" --compact 'SELECT id FROM [] WHERE NOT isActive' -)
+    expected='[{"id":"5ff8d1fbe962cc214df87658"},{"id":"5ff8d1fbd17bdee1c0768755"}]'
+    [ "${result}" == "${expected}" ]
+}
