@@ -9,22 +9,36 @@ typedef struct Columns {
     size_t n_columns;
 } Columns;
 
-// Add a new column to a JSON based table schema.
+// Concatenate a prefix an a member name.
 //
-// If a prefix is specified, the column is added as 'prefix$column'.
-void add_schema_column(JSONTableSchema* schema, char* prefix, char* column) {
+// JSON objects can either be top level nodes or themselves object members. For
+// nested members, column names are a concatenation of the member names,
+// separated by $. Top-level objects have no name, so their concatenated name is
+// simply the prefix itself with no trailing $.
+//
+// The caller is responsible for freeing the returned string.
+char* concat_prefix_name(const char* prefix, const char* name) {
+    if (name == NULL) {
+        return strdup(prefix);
+    }
+
+    // Allocate enough space for at most prefix + $ + name.
+    const size_t length = strlen(prefix) + strlen(name) + 2;
+    char* result = calloc(length, sizeof(char));
+    if (strlen(prefix) > 0) {
+        strcat(result, prefix);
+        strcat(result, "$");
+    }
+    strcat(result, name);
+    return result;
+}
+
+// Add a new column to JSONTableSchema.
+void add_schema_column(JSONTableSchema* schema, char* column_name) {
     ++schema->n_columns;
     schema->columns =
         realloc(schema->columns, schema->n_columns * sizeof(char*));
-    const size_t column_size =
-        strlen(prefix) + strlen(column) + strlen("$") + 1;
-    schema->columns[schema->n_columns - 1] =
-        calloc(column_size, sizeof(char));
-    strcpy(schema->columns[schema->n_columns - 1], prefix);
-    if (strlen(prefix) > 0) {
-        strcat(schema->columns[schema->n_columns - 1], "$");
-    }
-    strcat(schema->columns[schema->n_columns - 1], column);
+    schema->columns[schema->n_columns - 1] = strdup(column_name);
 }
 
 // Extract table column names from a JSON AST.
@@ -33,107 +47,47 @@ void collect_columns(JSONNode* ast, JSONTableSchema* schema, char* prefix) {
         return;
     }
 
-    switch (ast->value) {
-        case (JSON_VALUE_OBJECT): {
-            // Objects can either be top level nodes or themselves object
-            // members. If an object has a *name* value, it is a member and
-            // contributes its name to the prefix of its children.
-            char* new_prefix = strdup(prefix);
-            if (ast->name != NULL) {
-                const size_t new_size =
-                    strlen(new_prefix) + strlen(ast->name) + strlen("$") + 1;
-                new_prefix = realloc(new_prefix, new_size);
-                if (strlen(new_prefix) > 0) {
-                    strcat(new_prefix, "$");
-                }
-                strcat(new_prefix, ast->name);
-
-                // We also register the object itself as a column.
-                add_schema_column(schema, prefix, ast->name);
-            }
-
-            for (int i = 0; i < ast->n_members; i++) {
-                collect_columns(&ast->members[i], schema, new_prefix);
-            }
-            free(new_prefix);
-            break;
+    char* column_name = concat_prefix_name(prefix, ast->name);
+    if (ast->value == JSON_VALUE_OBJECT) {
+        // Register named objects themselves as a column.
+        if (ast->name != NULL) {
+            add_schema_column(schema, column_name);
         }
-        case (JSON_VALUE_ARRAY):
-        case (JSON_VALUE_NUMBER):
-        case (JSON_VALUE_STRING):
-        case (JSON_VALUE_NULL):
-        case (JSON_VALUE_TRUE):
-        case (JSON_VALUE_FALSE): {
-            add_schema_column(schema, prefix, ast->name);
-            break;
+        // Register the objects members as columns, prefixed with the
+        // current column name.
+        for (int i = 0; i < ast->n_members; i++) {
+            collect_columns(&ast->members[i], schema, column_name);
         }
-        default: {
-            log_and_exit("unknown value\n");
-            break;
-        }
+    } else {
+        add_schema_column(schema, column_name);
     }
+    free(column_name);
 }
 
-void extract_column_impl(JSONNode* ast, JSONNode** result, char* prefix,
-                         const char* target) {
+int extract_column_impl(JSONNode* ast, JSONNode** result, char* prefix,
+                        const char* target) {
     if (ast == NULL) {
-        return;
+        return 0;
     }
 
-    switch (ast->value) {
-        case (JSON_VALUE_OBJECT): {
-            // Objects can either be top level nodes or themselves object
-            // members. If an object has a *name* value, it is a member and
-            // contributes its name to the prefix of its children.
-            char* new_prefix = strdup(prefix);
-            if (ast->name != NULL) {
-                const size_t new_size =
-                    strlen(new_prefix) + strlen(ast->name) + strlen("$") + 1;
-                new_prefix = realloc(new_prefix, new_size);
-                if (strlen(new_prefix) > 0) {
-                    strcat(new_prefix, "$");
-                }
-                strcat(new_prefix, ast->name);
-            }
+    char* column_name = concat_prefix_name(prefix, ast->name);
+    if (strcmp(column_name, target) == 0) {
+        *result = ast;
+        free(column_name);
+        return 1;
+    }
 
-            if (strcmp(new_prefix, target) == 0) {
-                *result = ast;
-                break;
+    if (ast->value == JSON_VALUE_OBJECT) {
+        for (int i = 0; i < ast->n_members; i++) {
+            JSONNode* member = &ast->members[i];
+            if (extract_column_impl(member, result, column_name, target)) {
+                free(column_name);
+                return 1;
             }
-
-            for (int i = 0; i < ast->n_members; i++) {
-                extract_column_impl(&ast->members[i], result, new_prefix,
-                                    target);
-            }
-            free(new_prefix);
-            break;
-        }
-        case (JSON_VALUE_ARRAY):
-        case (JSON_VALUE_NUMBER):
-        case (JSON_VALUE_STRING):
-        case (JSON_VALUE_NULL):
-        case (JSON_VALUE_TRUE):
-        case (JSON_VALUE_FALSE): {
-            const size_t column_size =
-                strlen(prefix) + strlen(ast->name) + strlen("$") + 1;
-            char* column_name = calloc(column_size, sizeof(char));
-            strcpy(column_name, prefix);
-            if (strlen(prefix) > 0) {
-                strcat(column_name, "$");
-            }
-
-            strcat(column_name, ast->name);
-            if (strcmp(column_name, target) == 0) {
-                *result = ast;
-            }
-            free(column_name);
-            break;
-        }
-        default: {
-            log_and_exit("unknown value\n");
-            break;
         }
     }
+    free(column_name);
+    return 0;
 }
 
 void extract_column(JSONNode* ast, JSONNode** result, const char* target) {

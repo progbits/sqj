@@ -32,3 +32,16 @@ sqj="${root}/bin/sqj"
     expected='[{"id":"5fef99449eb340d76e5abf84"}]'
     [ "${result}" == "${expected}" ]
 }
+
+@test "select aliased member of a nested object with a nested object based condition" {
+    result=$(cat "${root}/test/data/array_with_nested.json" | "${sqj}" --compact 'SELECT about$registered AS date FROM [] WHERE about$metric > 0' -)
+    expected='[{"date":"2016-03-21T09:47:51 -00:00"},{"date":"2015-12-17T09:14:19 -00:00"}]'
+    [ "${result}" == "${expected}" ]
+}
+
+@test "select aliased member of a nested object with a nested object based condition" {
+    result=$(cat "${root}/test/data/array_with_nested.json" | "${sqj}" --compact 'SELECT about$registered AS date FROM [] WHERE about$metric > 0' -)
+    expected='[{"date":"2016-03-21T09:47:51 -00:00"},{"date":"2015-12-17T09:14:19 -00:00"}]'
+    [ "${result}" == "${expected}" ]
+}
+
