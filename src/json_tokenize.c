@@ -96,6 +96,7 @@ void tokenize(const char* input, Token** tokens, size_t* n_tokens) {
         // Allocate some space for the next token.
         *tokens = realloc(*tokens, (*n_tokens + 1) * sizeof(Token));
         Token* token = &((*tokens)[(*n_tokens)++]);
+        memset(token, 0, sizeof(Token));
 
         // Skip whitespace.
         while (is_json_whitespace(input)) {
