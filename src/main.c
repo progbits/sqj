@@ -25,6 +25,8 @@ void usage() {
 }
 
 int main(int argc, char** argv) {
+    int rc = 0;
+
     // Fail early for obviously invalid usage.
     if (argc < 2) {
         usage();
@@ -95,7 +97,8 @@ int main(int argc, char** argv) {
     // Query the table.
     if (exec(&client_data)) {
         fprintf(stderr, "failed to run query\n");
-        return EXIT_FAILURE;
+        rc = 1;
+        goto clean_up;
     }
 
     // Output the results.
@@ -103,10 +106,12 @@ int main(int argc, char** argv) {
         // User requested a specified value.
         if (client_data.result_ast->value != JSON_VALUE_ARRAY) {
             fprintf(stderr, "result is not an array\n");
+            rc = 1;
             goto clean_up;
         }
         if (shell_options.nth >= client_data.result_ast->n_values) {
             fprintf(stderr, "index out of range\n");
+            rc = 1;
             goto clean_up;
         }
         pretty_print(&client_data.result_ast->values[shell_options.nth], stdout,
@@ -127,5 +132,5 @@ clean_up:
     delete_ast(client_data.result_ast);
     free(client_data.result_ast);
 
-    return EXIT_SUCCESS;
+    return rc;
 }
