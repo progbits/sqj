@@ -96,25 +96,27 @@ void extract_column(JSONNode* ast, JSONNode** result, const char* target) {
 
 // Build a table schema from a JSON AST.
 void build_table_schema(JSONNode* ast, JSONTableSchema** schema) {
-    // Currently we only support JSON_TYPE_ARRAY as our top level node.
-    if (ast->value != JSON_VALUE_ARRAY) {
-        log_and_exit("not a JSON array\n");
-    }
-
-    // Some sanity checks.
-    if (ast->n_values == 0) {
-        log_and_exit("empty array\n");
-    }
-
-    // Assume that the first object in the array is representative and use
-    // that object to determine the columns of the schema.
     *schema = calloc(1, sizeof(JSONTableSchema));
-    collect_columns(&ast->values[0], *schema, "");
 
-    // Build our 'CREATE TABLE ...' statement from our columns.
     char* mem_stream_data = NULL;
     size_t mem_stream_size = 0;
     FILE* mem_stream = open_memstream(&mem_stream_data, &mem_stream_size);
+    if (ast->value == JSON_VALUE_OBJECT) {
+        collect_columns(ast, *schema, "");
+        if (ast->n_members == 0) {
+            add_schema_column(*schema, "INTERNAL_PLACEHOLDER");
+        }
+    } else if (ast->value == JSON_VALUE_ARRAY) {
+        // Use the first entry of the array as the schema.
+        // TODO: We should probably add a flag to relax this assumption and take
+        //  the set of all values in the input.
+        collect_columns(&ast->values[0], *schema, "");
+        if (ast->n_values == 0) {
+            add_schema_column(*schema, "INTERNAL_PLACEHOLDER");
+        }
+    }
+
+    // Build our 'CREATE TABLE ...' statement from our columns.
     fputs("CREATE TABLE [] (", mem_stream);
     for (int i = 0; i < (*schema)->n_columns; i++) {
         fputs((*schema)->columns[i], mem_stream);

@@ -138,6 +138,11 @@ void parse_array(Token** tokens, JSONNode* node) {
 //              *node->members* variable will hold the members of the object.
 //
 void parse_object(Token** tokens, JSONNode* node) {
+    // Exit early for empty objects.
+    if ((*tokens)->type == JSON_TOKEN_RIGHT_CURLY_BRACKET) {
+        return;
+    }
+
     while (*tokens) {
         ++node->n_members;
         node->members =

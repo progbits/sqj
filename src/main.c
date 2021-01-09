@@ -82,14 +82,6 @@ int main(int argc, char** argv) {
     JSONNode* ast;
     parse(tokens, &ast);
 
-    // Exit early if our input is empty.
-    if (ast->n_values == 0) {
-        pretty_print(ast, stdout, shell_options.compact);
-        free(input_data);
-        free(tokens);
-        exit(EXIT_SUCCESS);
-    }
-
     // Build the 'CREATE TABLE ...' statement.
     JSONTableSchema* schema;
     build_table_schema(ast, &schema);

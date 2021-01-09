@@ -56,8 +56,12 @@ int row_callback(ClientData* client_data) {
         const char* column_name = sqlite3_column_name(client_data->stmt, i);
 
         JSONNode* source_node = NULL;
-        extract_column(&client_data->ast->values[client_data->row],
-                       &source_node, column_name);
+        if (client_data->ast->value == JSON_VALUE_OBJECT) {
+            extract_column(client_data->ast, &source_node, column_name);
+        } else if (client_data->ast->value == JSON_VALUE_ARRAY) {
+            extract_column(&client_data->ast->values[client_data->row],
+                           &source_node, column_name);
+        }
 
         if (!source_node) {
             // At the moment, we assume that this is the result of an aliased
@@ -175,6 +179,10 @@ int xNext(sqlite3_vtab_cursor* pVtabCursor) {
 
 int xEof(sqlite3_vtab_cursor* pVtabCursor) {
     json_vtab_cursor* cursor = (json_vtab_cursor*)pVtabCursor;
+
+    if (cursor->client_data->ast->value == JSON_VALUE_OBJECT) {
+        return cursor->row > 0;
+    }
     return cursor->row >= cursor->client_data->ast->n_values;
 }
 
@@ -184,9 +192,13 @@ int xColumn(sqlite3_vtab_cursor* pVtabCursor, sqlite3_context* pContext,
 
     // Get the value of the target column.
     char* target_column_name = cursor->client_data->schema->columns[n];
-    JSONNode* ast_node;
-    extract_column(&cursor->client_data->ast->values[cursor->row], &ast_node,
-                   target_column_name);
+    JSONNode* ast_node = NULL;
+    if (cursor->client_data->ast->value == JSON_VALUE_OBJECT) {
+        extract_column(cursor->client_data->ast, &ast_node, target_column_name);
+    } else if (cursor->client_data->ast->value == JSON_VALUE_ARRAY) {
+        extract_column(&cursor->client_data->ast->values[cursor->row],
+                       &ast_node, target_column_name);
+    }
 
     // Record the value.
     switch (ast_node->value) {
@@ -331,6 +343,22 @@ int exec(ClientData* client_data) {
         fprintf(stderr, "something went wrong\n");
         sqlite3_close(db);
         return rc;
+    }
+
+    // If we have an empty array or an empty object and our query doesn't
+    // contain any columns, except our internal placeholder required to have a
+    // valid CREATE TABLE statement for empty objects/arrays. We can just pretty
+    // print the AST as it stands.
+    const int n_columns = sqlite3_column_count(client_data->stmt);
+    if (n_columns == 1) {
+        const char* column_name = sqlite3_column_name(client_data->stmt, 0);
+        if (strcmp(column_name, "INTERNAL_PLACEHOLDER") == 0) {
+            client_data->result_ast = calloc(1, sizeof(JSONNode));
+            client_data->result_ast->value = client_data->ast->value;
+            sqlite3_finalize(client_data->stmt);
+            sqlite3_close(db);
+            return rc;
+        }
     }
 
     while (sqlite3_step(client_data->stmt) == SQLITE_ROW) {
