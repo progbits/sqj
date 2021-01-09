@@ -10,6 +10,7 @@
 
 typedef struct ShellOptions {
     int compact;
+    int nth;
 } ShellOptions;
 
 // Print usage information and exit.
@@ -30,7 +31,7 @@ int main(int argc, char** argv) {
     }
 
     // Parse command line options.
-    ShellOptions shell_options = {};
+    ShellOptions shell_options = {.nth = -1};
     int i;
     for (i = 1; i < argc; i++) {
         char* z = argv[i];
@@ -45,6 +46,8 @@ int main(int argc, char** argv) {
             usage();
         } else if (strcmp(z, "-compact") == 0) {
             shell_options.compact = 1;
+        } else if (strcmp(z, "-nth") == 0) {
+            shell_options.nth = atoi(argv[++i]);
         }
     }
 
@@ -96,9 +99,24 @@ int main(int argc, char** argv) {
     }
 
     // Output the results.
-    pretty_print(client_data.result_ast, stdout, shell_options.compact);
+    if (shell_options.nth > 0) {
+        // User requested a specified value.
+        if (client_data.result_ast->value != JSON_VALUE_ARRAY) {
+            fprintf(stderr, "result is not an array\n");
+            goto clean_up;
+        }
+        if (shell_options.nth >= client_data.result_ast->n_values) {
+            fprintf(stderr, "index out of range\n");
+            goto clean_up;
+        }
+        pretty_print(&client_data.result_ast->values[shell_options.nth], stdout,
+                     shell_options.compact);
+    } else {
+        pretty_print(client_data.result_ast, stdout, shell_options.compact);
+    }
 
     // Time to wrap it up!.
+clean_up:
     free(input_data);
     delete_tokens(tokens, n_tokens);
     delete_table_schema(schema);

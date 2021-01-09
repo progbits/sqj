@@ -68,3 +68,9 @@ sqj="${root}/bin/sqj"
     expected='[{"friends":[{"id":0,"name":"Dawson Joyce"},{"id":1,"name":"Trujillo Jones"},{"id":2,"name":"Sykes Cross"}]}]'
     [ "${result}" == "${expected}" ]
 }
+
+@test "--nth command line option" {
+    result=$(cat "${root}/test/data/basic_array.json" | "${sqj}" --compact --nth 2 'SELECT * FROM []' -)
+    expected='{"id":"5fef9944c13168afef559442","value":49.9649}'
+    [ "${result}" == "${expected}" ]
+}
