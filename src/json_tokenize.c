@@ -170,8 +170,13 @@ void tokenize(const char* input, Token** tokens, size_t* n_tokens) {
 
         // Must be consuming a string.
         if (*input == '\"') {
+            char previous = '\0';
             const char* start = ++input;
-            while (input && *input != '\"') {
+            while (input) {
+                if (*input == '\"' && previous != '\\') {
+                    break;
+                }
+                previous = *input;
                 ++input;
             }
             token->type = JSON_TOKEN_STRING;
