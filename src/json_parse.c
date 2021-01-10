@@ -173,7 +173,7 @@ void parse_object(Token** tokens, JSONNode* node) {
                 break;
             }
             case (JSON_TOKEN_NULL): {
-                member->value = JSON_VALUE_FALSE;
+                member->value = JSON_VALUE_NULL;
                 ++(*tokens);
                 break;
             }

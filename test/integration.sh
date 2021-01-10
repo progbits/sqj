@@ -21,6 +21,12 @@ sqj="${root}/bin/sqj"
     [ "${result}" == "${expected}" ]
 }
 
+@test "select a null value" {
+    result=$(echo '[{"name": null}]' | "${sqj}" --compact 'SELECT * FROM []' -)
+    expected='[{"name":null}]'
+    [ "${result}" == "${expected}" ]
+}
+
 @test "select all columns from basic array" {
     result=$(cat "${root}/test/data/basic_array.json" | "${sqj}" --compact 'SELECT * FROM []' -)
     expected='[{"id":"5fef99445feb430d23e22be1","value":47.5088},{"id":"5fef99449eb340d76e5abf84","value":28.4475},{"id":"5fef9944c13168afef559442","value":49.9649}]'
