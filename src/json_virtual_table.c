@@ -48,12 +48,19 @@ int row_callback(ClientData* client_data) {
         &client_data->result_ast->values[client_data->result_ast->n_values - 1];
     result_object->value = JSON_VALUE_OBJECT;
     for (int i = 0; i < column_count; i++) {
+        const char* column_name = sqlite3_column_name(client_data->stmt, i);
+        if (column_count == client_data->schema->n_columns) {
+            // Don't emit nested columns for SELECT * queries, we are already
+            // emitting the entire object.
+            if (strchr(column_name, '$')) {
+                continue;
+            }
+        }
+
         ++result_object->n_members;
         result_object->members =
             realloc(result_object->members,
                     result_object->n_members * sizeof(struct JSONNode));
-
-        const char* column_name = sqlite3_column_name(client_data->stmt, i);
 
         JSONNode* source_node = NULL;
         if (client_data->ast->value == JSON_VALUE_OBJECT) {
@@ -198,6 +205,11 @@ int xColumn(sqlite3_vtab_cursor* pVtabCursor, sqlite3_context* pContext,
     } else if (cursor->client_data->ast->value == JSON_VALUE_ARRAY) {
         extract_column(&cursor->client_data->ast->values[cursor->row],
                        &ast_node, target_column_name);
+    }
+
+    if (ast_node == NULL) {
+        sqlite3_result_null(pContext);
+        return SQLITE_OK;
     }
 
     // Record the value.
