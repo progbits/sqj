@@ -116,6 +116,36 @@ START_TEST(test_json_tokenize_2) {
     }
 END_TEST
 
+START_TEST(test_json_tokenize_3) {
+        const char* raw_json = "[{\"empty\": []}]";
+
+        Token* tokens = NULL;
+        size_t n_tokens = 0;
+        tokenize(raw_json, &tokens, &n_tokens);
+
+        const JSON_TOKEN expected_tokens[] = {
+            JSON_TOKEN_LEFT_SQUARE_BRACKET,
+            JSON_TOKEN_LEFT_CURLY_BRACKET,
+            JSON_TOKEN_STRING,
+            JSON_TOKEN_COLON,
+            JSON_TOKEN_LEFT_SQUARE_BRACKET,
+            JSON_TOKEN_RIGHT_SQUARE_BRACKET,
+            JSON_TOKEN_RIGHT_CURLY_BRACKET,
+            JSON_TOKEN_RIGHT_SQUARE_BRACKET,
+        };
+
+        // Assert.
+        ck_assert_int_eq(n_tokens,
+                         sizeof(expected_tokens) / sizeof(expected_tokens[0]));
+        for (size_t i = 0; i < n_tokens; i++) {
+            ck_assert_int_eq(tokens[i].type, expected_tokens[i]);
+        }
+
+        // Clean up.
+        free(tokens);
+    }
+END_TEST
+
 Suite* tokenizer_suite(void) {
     Suite* s = suite_create("json_tokenize");
 
@@ -123,6 +153,7 @@ Suite* tokenizer_suite(void) {
     tcase_add_test(tc_core, test_json_tokenize_0);
     tcase_add_test(tc_core, test_json_tokenize_1);
     tcase_add_test(tc_core, test_json_tokenize_2);
+    tcase_add_test(tc_core, test_json_tokenize_3);
 
     suite_add_tcase(s, tc_core);
     return s;

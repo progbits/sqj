@@ -91,6 +91,38 @@ START_TEST(test_json_parse_simple_false) {
 }
 END_TEST
 
+START_TEST(test_json_parse_object_with_empty_array_member) {
+    // Arrange.
+    JSONNode* ast = NULL;
+
+    const Token tokens[] = {
+        {.type = JSON_TOKEN_LEFT_SQUARE_BRACKET},
+        {.type = JSON_TOKEN_LEFT_CURLY_BRACKET},
+        {.type = JSON_TOKEN_STRING, .string = "empty"},
+        {.type = JSON_TOKEN_COLON},
+        {.type = JSON_TOKEN_LEFT_SQUARE_BRACKET},
+        {.type = JSON_TOKEN_RIGHT_SQUARE_BRACKET},
+        {.type = JSON_TOKEN_RIGHT_CURLY_BRACKET},
+        {.type = JSON_TOKEN_RIGHT_SQUARE_BRACKET},
+    };
+
+    // Act.
+    parse((Token*)tokens, &ast);
+
+    // Assert.
+    ck_assert_int_eq(ast->value, JSON_VALUE_ARRAY);
+    ck_assert_int_eq(ast->n_values, 1);
+    ck_assert_int_eq(ast->values[0].value, JSON_VALUE_OBJECT);
+    ck_assert_int_eq(ast->values[0].n_members, 1);
+    ck_assert_int_eq(ast->values[0].members[0].value, JSON_VALUE_ARRAY);
+    ck_assert_str_eq(ast->values[0].members[0].name, "empty");
+    ck_assert_int_eq(ast->values[0].members[0].n_values, 0);
+
+    // Clean up.
+    free(ast);
+}
+END_TEST
+
 Suite* parser_suite(void) {
     Suite* s = suite_create("json_parse");
 
@@ -100,6 +132,7 @@ Suite* parser_suite(void) {
     tcase_add_test(tc_core, test_json_parse_simple_null);
     tcase_add_test(tc_core, test_json_parse_simple_true);
     tcase_add_test(tc_core, test_json_parse_simple_false);
+    tcase_add_test(tc_core, test_json_parse_object_with_empty_array_member);
 
     suite_add_tcase(s, tc_core);
     return s;

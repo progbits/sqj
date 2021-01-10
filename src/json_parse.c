@@ -55,6 +55,7 @@ void deep_clone(JSONNode* src, JSONNode* dest) {
 void parse_array(Token** tokens, JSONNode* node) {
     // Exit early for empty arrays.
     if ((*tokens)->type == JSON_TOKEN_RIGHT_SQUARE_BRACKET) {
+        ++(*tokens);
         return;
     }
 
