@@ -21,6 +21,14 @@ sqj="${root}/bin/sqj"
     [ "${result}" == "${expected}" ]
 }
 
+@test "input object with keyword members" {
+  for input in "${root}"/test/data/keywords_*; do
+    result=$(cat "${input}" | "${sqj}" --nth 0 'SELECT * FROM []' -)
+    expected=$(cat "${input}")
+    [ "${result}" == "${expected}" ]
+  done
+}
+
 @test "select a null value" {
     result=$(echo '[{"name": null}]' | "${sqj}" --compact 'SELECT * FROM []' -)
     expected='[{"name":null}]'
