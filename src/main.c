@@ -102,7 +102,7 @@ int main(int argc, char** argv) {
     }
 
     // Output the results.
-    if (shell_options.nth > 0) {
+    if (shell_options.nth > -1) {
         // User requested a specified value.
         if (client_data.result_ast->value != JSON_VALUE_ARRAY) {
             fprintf(stderr, "result is not an array\n");

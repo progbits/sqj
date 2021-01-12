@@ -81,6 +81,12 @@ sqj="${root}/bin/sqj"
     [ "${result}" == "${expected}" ]
 }
 
+@test "--nth command line option - select first element" {
+    result=$(cat "${root}/test/data/basic_array.json" | "${sqj}" --compact --nth 0 'SELECT * FROM []' -)
+    expected='{"id":"5fef99445feb430d23e22be1","value":47.5088}'
+    [ "${result}" == "${expected}" ]
+}
+
 @test "--nth command line option" {
     result=$(cat "${root}/test/data/basic_array.json" | "${sqj}" --compact --nth 2 'SELECT * FROM []' -)
     expected='{"id":"5fef9944c13168afef559442","value":49.9649}'
