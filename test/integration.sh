@@ -100,3 +100,9 @@ sqj="${root}/bin/sqj"
     expected='{"id":"5fef9944c13168afef559442","value":49.9649}'
     [ "${result}" == "${expected}" ]
 }
+
+@test "member names are escaped correctly" {
+    result=$(cat "${root}/test/data/naming.json" | "${sqj}" --nth 0 'SELECT * FROM []' -)
+    expected=$(cat "${root}/test/data/naming.json")
+    [ "${result}" == "${expected}" ]
+}

@@ -5,181 +5,10 @@
 #include "json_schema.h"
 #include "util.h"
 
-const char* keywords[] = {
-    "ABORT",
-    "ACTION",
-    "ADD",
-    "AFTER",
-    "ALL",
-    "ALTER",
-    "ALWAYS",
-    "ANALYZE",
-    "AND",
-    "AS",
-    "ASC",
-    "ATTACH",
-    "AUTOINCREMENT",
-    "BEFORE",
-    "BEGIN",
-    "BETWEEN",
-    "BY",
-    "CASCADE",
-    "CASE",
-    "CAST",
-    "CHECK",
-    "COLLATE",
-    "COLUMN",
-    "COMMIT",
-    "CONFLICT",
-    "CONSTRAINT",
-    "CREATE",
-    "CROSS",
-    "CURRENT",
-    "CURRENT_DATE",
-    "CURRENT_TIME",
-    "CURRENT_TIMESTAMP",
-    "DATABASE",
-    "DEFAULT",
-    "DEFERRABLE",
-    "DEFERRED",
-    "DELETE",
-    "DESC",
-    "DETACH",
-    "DISTINCT",
-    "DO",
-    "DROP",
-    "EACH",
-    "ELSE",
-    "END",
-    "ESCAPE",
-    "EXCEPT",
-    "EXCLUDE",
-    "EXCLUSIVE",
-    "EXISTS",
-    "EXPLAIN",
-    "FAIL",
-    "FILTER",
-    "FIRST",
-    "FOLLOWING",
-    "FOR",
-    "FOREIGN",
-    "FROM",
-    "FULL",
-    "GENERATED",
-    "GLOB",
-    "GROUP",
-    "GROUPS",
-    "HAVING",
-    "IF",
-    "IGNORE",
-    "IMMEDIATE",
-    "IN",
-    "INDEX",
-    "INDEXED",
-    "INITIALLY",
-    "INNER",
-    "INSERT",
-    "INSTEAD",
-    "INTERSECT",
-    "INTO",
-    "IS",
-    "ISNULL",
-    "JOIN",
-    "KEY",
-    "LAST",
-    "LEFT",
-    "LIKE",
-    "LIMIT",
-    "MATCH",
-    "NATURAL",
-    "NO",
-    "NOT",
-    "NOTHING",
-    "NOTNULL",
-    "NULL",
-    "NULLS",
-    "OF",
-    "OFFSET",
-    "ON",
-    "OR",
-    "ORDER",
-    "OTHERS",
-    "OUTER",
-    "OVER",
-    "PARTITION",
-    "PLAN",
-    "PRAGMA",
-    "PRECEDING",
-    "PRIMARY",
-    "QUERY",
-    "RAISE",
-    "RANGE",
-    "RECURSIVE",
-    "REFERENCES",
-    "REGEXP",
-    "REINDEX",
-    "RELEASE",
-    "RENAME",
-    "REPLACE",
-    "RESTRICT",
-    "RIGHT",
-    "ROLLBACK",
-    "ROW",
-    "ROWS",
-    "SAVEPOINT",
-    "SELECT",
-    "SET",
-    "TABLE",
-    "TEMP",
-    "TEMPORARY",
-    "THEN",
-    "TIES",
-    "TO",
-    "TRANSACTION",
-    "TRIGGER",
-    "UNBOUNDED",
-    "UNION",
-    "UNIQUE",
-    "UPDATE",
-    "USING",
-    "VACUUM",
-    "VALUES",
-    "VIEW",
-    "VIRTUAL",
-    "WHEN",
-    "WHERE",
-    "WINDOW",
-    "WITH",
-    "WITHOUT",
-};
-
 typedef struct Columns {
     char** columns;
     size_t n_columns;
 } Columns;
-
-// Check if a string is a valid column name.
-int valid_column_name(const char* str) {
-    // Keywords are never valid column names.
-    for (int i = 0; i < sizeof(keywords) / sizeof(keywords[0]); ++i) {
-        if (strlen(str) != strlen(keywords[i])) {
-            continue;
-        }
-
-        int match = 1;
-        for (int j = 0; j < strlen(str); j++) {
-            if (tolower(str[j]) != tolower(keywords[i][j])) {
-                match = 0;
-                break;
-            }
-        }
-
-        if (match) {
-            return 0;
-        }
-    }
-    return 1;
-}
 
 // Concatenate a prefix an a member name.
 //
@@ -211,13 +40,10 @@ void add_schema_column(JSONTableSchema* schema, char* column_name) {
     schema->columns =
         realloc(schema->columns, schema->n_columns * sizeof(char*));
 
-    if (valid_column_name(column_name)) {
-        schema->columns[schema->n_columns - 1] = strdup(column_name);
-        return;
-    }
-
+    // All column names are escaped.
     char* escaped = escape_string(column_name);
-    schema->columns[schema->n_columns - 1] = escaped;
+    schema->columns[schema->n_columns - 1] = strdup(escaped);
+    free(escaped);
 }
 
 // Extract table column names from a JSON AST.

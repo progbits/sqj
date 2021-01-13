@@ -1,0 +1,12 @@
+{
+  "a":true,
+  "a b":true,
+  "a foo bar":true,
+  "it's a foo":true,
+  "'":true,
+  "''":true,
+  "'''":true,
+  "''''":true,
+  "π":true,
+  "Ω":true
+}

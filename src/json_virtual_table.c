@@ -198,14 +198,17 @@ int xColumn(sqlite3_vtab_cursor* pVtabCursor, sqlite3_context* pContext,
     json_vtab_cursor* cursor = (json_vtab_cursor*)pVtabCursor;
 
     // Get the value of the target column.
-    char* target_column_name = cursor->client_data->schema->columns[n];
+    char* column = cursor->client_data->schema->columns[n];
+    char* unescaped_column = unescape_string(column);
+
     JSONNode* ast_node = NULL;
     if (cursor->client_data->ast->value == JSON_VALUE_OBJECT) {
-        extract_column(cursor->client_data->ast, &ast_node, target_column_name);
+        extract_column(cursor->client_data->ast, &ast_node, unescaped_column);
     } else if (cursor->client_data->ast->value == JSON_VALUE_ARRAY) {
         extract_column(&cursor->client_data->ast->values[cursor->row],
-                       &ast_node, target_column_name);
+                       &ast_node, unescaped_column);
     }
+    free(unescaped_column);
 
     if (ast_node == NULL) {
         sqlite3_result_null(pContext);

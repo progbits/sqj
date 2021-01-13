@@ -13,19 +13,27 @@ void log_and_exit(const char* format, ...) {
 }
 
 char* escape_string(const char* str) {
-    // Count how many ' we need to escape.
-    int n_esc = 0;
+    if (strlen(str) == 0) {
+        return NULL;
+    }
+
+    // Since we are enclosing our string in single quotation marks ('), we need
+    // to escape any exiting ' characters. n_esc starts at 2 to account for the
+    // leading and trailing single quotation marks.
+    int n_esc = 2;
     for (int i = 0; i < strlen(str); i++) {
         if (str[i] == '\'') {
             ++n_esc;
         }
     }
 
-    // Allocate space for leading and trailing ', plus any additional ' that we
-    // need to escape.
-    char* escaped = calloc(strlen(str) + n_esc + 3, sizeof(char));
-    escaped[0] = '\'';
-    for (int i = 0, j = 1; i < strlen(str); i++, j++) {
+    // Allocate space for the escaped string.
+    char* escaped = calloc(strlen(str) + n_esc + 1, sizeof(char));
+
+    // Build the escaped string.
+    int j = 0;
+    escaped[j++] = '\'';
+    for (int i = 0; i < strlen(str); i++, j++) {
         if (str[i] == '\'') {
             escaped[j++] = '\'';
             escaped[j] = str[i];
@@ -33,7 +41,35 @@ char* escape_string(const char* str) {
         }
         escaped[j] = str[i];
     }
-    escaped[strlen(str) + 1] = '\'';
+    escaped[j] = '\'';
 
     return escaped;
+}
+
+char* unescape_string(const char* str) {
+    if (strlen(str) == 0) {
+        return NULL;
+    }
+
+    // Count how many ' characters we escaped.
+    int n_esc = 0;
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] == '\'') {
+            ++n_esc;
+            ++i;
+        }
+    }
+
+    // Allocate space into which to retrieve the original string.
+    char* original = calloc((strlen(str) - n_esc) + 1, sizeof(char));
+
+    // Unescape string.
+    for (int i = 0, j = 1; j < strlen(str) - 1; i++, j++) {
+        if (str[j] == '\'') {
+            original[i] = str[j++];
+            continue;
+        }
+        original[i] = str[j];
+    }
+    return original;
 }
