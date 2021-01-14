@@ -55,7 +55,7 @@ sqj="${root}/bin/sqj"
 
 @test "select all columns in the presence of nested objects" {
     result=$(cat "${root}/test/data/array_with_nested.json" | "${sqj}" --compact 'SELECT * FROM [] LIMIT 1' -)
-    expected='[{"id":"5ff8d1fbdc7d0c09c7138193","guid":"dc640ea9-28f8-4ff6-8609-cfc6157e52bc","isActive":true,"about":{"registered":"2014-11-04T10:37:35 -00:00","metric":-24.0467}}]'
+    expected='[{"id":"5ff8d1fbdc7d0c09c7138193","guid":"dc640ea9-28f8-4ff6-8609-cfc6157e52bc","isActive":true,"about":{"registered":"2014-11-04T10:37:35 -00:00","metric":-24.04675}}]'
     [ "${result}" == "${expected}" ]
 }
 
@@ -104,5 +104,11 @@ sqj="${root}/bin/sqj"
 @test "member names are escaped correctly" {
     result=$(cat "${root}/test/data/naming.json" | "${sqj}" --nth 0 'SELECT * FROM []' -)
     expected=$(cat "${root}/test/data/naming.json")
+    [ "${result}" == "${expected}" ]
+}
+
+@test "numbers are displayed correctly" {
+    result=$(cat "${root}/test/data/numbers.json" | "${sqj}" --compact 'SELECT * FROM []' -)
+    expected='[{"α":0.0072973525693,"γ":0.5772156649015329,"δ":4.66920160910299,"ϵ":8854187812813,"ζ":1.2020569031595942,"θ":90,"μ":1.2566370614e-06,"ψ":3.3598856662431777}]'
     [ "${result}" == "${expected}" ]
 }

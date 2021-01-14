@@ -1,3 +1,5 @@
+#include <float.h>
+#include <math.h>
 #include <stddef.h>
 
 #include "json_parse.h"
@@ -328,10 +330,25 @@ void pretty_print_impl(JSONNode* ast, FILE* stream, int compact, int depth) {
         }
         case (JSON_VALUE_NUMBER): {
             if (ast->name) {
-                fprintf(stream, "\"%s\":%g", ast->name, ast->number_value);
-            } else {
-                fprintf(stream, "\"%g\"", ast->number_value);
+                fprintf(stream, "\"%s\":", ast->name);
             }
+
+            // This is not very pretty...
+            //
+            // Try and work out what precision will recover the original number
+            // exactly and if we can't recover it, resort to %1.17g.
+            char buffer[64];
+            char* candidates[] = {"%1.15g", "%1.16g", "%1.17g"};
+            for (int i = 0; i < 3; i++) {
+                sprintf(buffer, candidates[i], ast->number_value);
+                double rcvd = strtod(buffer, NULL);
+                const double diff = fabs((double)rcvd - ast->number_value);
+                if (diff == 0.0) {
+                    fprintf(stream, "%s", buffer);
+                    return;
+                }
+            }
+            fprintf(stream, "%1.17g", ast->number_value);
             return;
         }
         case (JSON_VALUE_STRING): {
