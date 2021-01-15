@@ -28,8 +28,3 @@ make test
 ```
 
 ## Limitations
-
-Because names are registered as table columns, names cannot conflict with any
-reserved [SQLite keywords](https://sqlite.org/lang_keywords.html). This
-limitation will be addressed in a future release.
-
