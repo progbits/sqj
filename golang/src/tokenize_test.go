@@ -1,0 +1,182 @@
+package main
+
+import "testing"
+
+type TestCase struct {
+	json   string
+	tokens []TokenType
+}
+
+var testCase = []TestCase{
+	{
+		json: `{}`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+		},
+	},
+	{
+		json: `[]`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_SQUARE_BRACKET,
+			JSON_TOKEN_RIGHT_SQUARE_BRACKET,
+		},
+	},
+	{
+		json: `{"foo": 1}`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+		},
+	},
+	{
+		json: `{"foo": 3.14}`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+		},
+	},
+	{
+		json: `{"foo": 1, "bar": 3.14, "baz": true,"foobar": false, "foobaz": "hello, world"}`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_TRUE,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_FALSE,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+		},
+	},
+	{
+		json: `{"foo": [{"bar": 1}, {"baz": 2}]}`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_LEFT_SQUARE_BRACKET,
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+			JSON_TOKEN_RIGHT_SQUARE_BRACKET,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+		},
+	},
+	{
+		json: `{"foo": "\\\"\\\"", "bar": "\\\"hello, world\\\""}`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+		},
+	},
+	{
+		json: `[{"empty": []}]`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_SQUARE_BRACKET,
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_LEFT_SQUARE_BRACKET,
+			JSON_TOKEN_RIGHT_SQUARE_BRACKET,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+			JSON_TOKEN_RIGHT_SQUARE_BRACKET,
+		},
+	},
+	{
+		json: `{
+			   "α": 0.0072973525693,
+			   "γ": 0.5772156649015328606065120900824024310421,
+			   "δ": 4.669201609102990671853203820466,
+			   "ϵ": 8.854187812813e12,
+			   "ζ": 1.202056903159594285399738161511449990764986292,
+			   "θ": 90,
+			   "μ": 1.2566370614E-6,
+			   "ψ": 3.359885666243177553172011302918927179688905133732
+			}`,
+		tokens: []TokenType{
+			JSON_TOKEN_LEFT_CURLY_BRACKET,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_COMMA,
+			JSON_TOKEN_STRING,
+			JSON_TOKEN_COLON,
+			JSON_TOKEN_NUMBER,
+			JSON_TOKEN_RIGHT_CURLY_BRACKET,
+		},
+	},
+}
+
+func TestTokenize(t *testing.T) {
+	for i := 0; i < len(testCase); i++ {
+		tokenizer := Tokenizer{
+			buf:    testCase[i].json,
+			pos:    0,
+			tokens: nil,
+		}
+		tokenizer.tokenize()
+
+		if len(tokenizer.tokens) != len(testCase[i].tokens) {
+			t.Fatalf("unexpected number of tokens")
+		}
+	}
+}
