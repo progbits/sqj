@@ -1,4 +1,4 @@
-package main
+package json
 
 import (
 	"fmt"
@@ -24,22 +24,22 @@ const (
 
 type ASTNode struct {
 	// The value type of this node.
-	value JSONValue
+	Value JSONValue
 
 	// Name of object member.
-	name string
+	Name string
 
 	// Object members.
-	members []*ASTNode
+	Members []*ASTNode
 
 	// Array values.
-	values []*ASTNode
+	Values []*ASTNode
 
 	// Value for tokens of type NUMBER.
-	number float64
+	Number float64
 
 	// Value for tokens of type STRING.
-	string string
+	String string
 }
 
 // Compare two ASTs for equality.
@@ -52,41 +52,41 @@ func equal(a, b *ASTNode) bool {
 		return false
 	}
 
-	if a.name != b.name || a.value != b.value {
+	if a.Name != b.Name || a.Value != b.Value {
 		return false
 	}
 
-	switch a.value {
+	switch a.Value {
 	case JSON_VALUE_OBJECT:
-		if len(a.members) != len(b.members) {
+		if len(a.Members) != len(b.Members) {
 			return false
 		}
 
-		for i := 0; i < len(a.members); i++ {
-			if !equal(a.members[i], b.members[i]) {
+		for i := 0; i < len(a.Members); i++ {
+			if !equal(a.Members[i], b.Members[i]) {
 				return false
 			}
 		}
 	case JSON_VALUE_ARRAY:
-		if len(a.values) != len(b.values) {
+		if len(a.Values) != len(b.Values) {
 			return false
 		}
 
-		for i := 0; i < len(a.values); i++ {
-			if !equal(a.values[i], b.values[i]) {
+		for i := 0; i < len(a.Values); i++ {
+			if !equal(a.Values[i], b.Values[i]) {
 				return false
 			}
 		}
 	case JSON_VALUE_NUMBER:
-		if a.number != b.number {
+		if a.Number != b.Number {
 			return false
 		}
 	case JSON_VALUE_STRING:
-		if a.string != b.string {
+		if a.String != b.String {
 			return false
 		}
 	case JSON_VALUE_NULL, JSON_VALUE_TRUE, JSON_VALUE_FALSE:
-		if a.value != b.value {
+		if a.Value != b.Value {
 			return false
 		}
 	default:
@@ -96,7 +96,7 @@ func equal(a, b *ASTNode) bool {
 }
 
 // Find an AST node by name.
-func findNode(ast *ASTNode, name string) *ASTNode {
+func FindNode(ast *ASTNode, name string) *ASTNode {
 	var result *ASTNode
 	findNodeImpl(ast, &result, name, "")
 	return result
@@ -107,15 +107,15 @@ func findNodeImpl(ast *ASTNode, result **ASTNode, target, prefix string) bool {
 		return false
 	}
 
-	columnName := concatPrefixName(prefix, ast.name)
+	columnName := concatPrefixName(prefix, ast.Name)
 	if columnName == target {
 		*result = ast
 		return true
 	}
 
-	if ast.value == JSON_VALUE_OBJECT {
-		for i := 0; i < len(ast.members); i++ {
-			found := findNodeImpl(ast.members[i], result, target, columnName)
+	if ast.Value == JSON_VALUE_OBJECT {
+		for i := 0; i < len(ast.Members); i++ {
+			found := findNodeImpl(ast.Members[i], result, target, columnName)
 			if found {
 				return true
 			}
@@ -140,17 +140,17 @@ func prettyPrintImpl(writer io.Writer, ast *ASTNode, compact bool, depth int) {
 	}
 
 	literal := ""
-	switch ast.value {
+	switch ast.Value {
 	case JSON_VALUE_OBJECT:
-		if ast.name != "" && depth > 0 {
-			_, _ = fmt.Fprintf(writer, "\"%s\": {%s", ast.name, lineTerm)
+		if ast.Name != "" && depth > 0 {
+			_, _ = fmt.Fprintf(writer, "\"%s\": {%s", ast.Name, lineTerm)
 		} else {
 			_, _ = fmt.Fprintf(writer, "{%s", lineTerm)
 		}
 
-		for i := 0; i < len(ast.members); i++ {
-			prettyPrintImpl(writer, ast.members[i], compact, depth+1)
-			if i < len(ast.members)-1 {
+		for i := 0; i < len(ast.Members); i++ {
+			prettyPrintImpl(writer, ast.Members[i], compact, depth+1)
+			if i < len(ast.Members)-1 {
 				_, _ = fmt.Fprintf(writer, ",%s", lineTerm)
 			}
 		}
@@ -167,15 +167,15 @@ func prettyPrintImpl(writer io.Writer, ast *ASTNode, compact bool, depth int) {
 		}
 		return
 	case JSON_VALUE_ARRAY:
-		if ast.name != "" && depth > 0 {
-			_, _ = fmt.Fprintf(writer, "\"%s\": [%s", ast.name, lineTerm)
+		if ast.Name != "" && depth > 0 {
+			_, _ = fmt.Fprintf(writer, "\"%s\": [%s", ast.Name, lineTerm)
 		} else {
 			_, _ = fmt.Fprintf(writer, "[%s", lineTerm)
 		}
 
-		for i := 0; i < len(ast.values); i++ {
-			prettyPrintImpl(writer, ast.values[i], compact, depth+1)
-			if i < len(ast.values)-1 {
+		for i := 0; i < len(ast.Values); i++ {
+			prettyPrintImpl(writer, ast.Values[i], compact, depth+1)
+			if i < len(ast.Values)-1 {
 				_, _ = fmt.Fprintf(writer, ",%s", lineTerm)
 			}
 		}
@@ -193,8 +193,8 @@ func prettyPrintImpl(writer io.Writer, ast *ASTNode, compact bool, depth int) {
 
 		return
 	case JSON_VALUE_NUMBER:
-		if ast.name != "" && depth > 0 {
-			_, _ = fmt.Fprintf(writer, "\"%s\": ", ast.name)
+		if ast.Name != "" && depth > 0 {
+			_, _ = fmt.Fprintf(writer, "\"%s\": ", ast.Name)
 		}
 
 		// This is not very pretty...
@@ -203,21 +203,21 @@ func prettyPrintImpl(writer io.Writer, ast *ASTNode, compact bool, depth int) {
 		// exactly and if we can't recover it, resort to %1.17g.
 		candidates := []string{"%1.15g", "%1.16g", "%1.17g"}
 		for i := 0; i < 3; i++ {
-			buffer := fmt.Sprintf(candidates[i], ast.number)
+			buffer := fmt.Sprintf(candidates[i], ast.Number)
 			rcvd, _ := strconv.ParseFloat(buffer, 64)
-			diff := math.Abs(rcvd - ast.number)
+			diff := math.Abs(rcvd - ast.Number)
 			if diff == 0.0 {
 				_, _ = fmt.Fprintf(writer, "%s", buffer)
 				return
 			}
 		}
-		_, _ = fmt.Fprintf(writer, "%1.17g", ast.number)
+		_, _ = fmt.Fprintf(writer, "%1.17g", ast.Number)
 		return
 	case JSON_VALUE_STRING:
-		if ast.name != "" && depth > 0 {
-			_, _ = fmt.Fprintf(writer, "\"%s\": \"%s\"", ast.name, ast.string)
+		if ast.Name != "" && depth > 0 {
+			_, _ = fmt.Fprintf(writer, "\"%s\": \"%s\"", ast.Name, ast.String)
 		} else {
-			_, _ = fmt.Fprintf(writer, "\"%s\"", ast.string)
+			_, _ = fmt.Fprintf(writer, "\"%s\"", ast.String)
 		}
 		return
 	case JSON_VALUE_NULL:
@@ -231,14 +231,14 @@ func prettyPrintImpl(writer io.Writer, ast *ASTNode, compact bool, depth int) {
 	}
 
 	// Handle literal values.
-	if ast.name != "" && depth > 0 {
-		_, _ = fmt.Fprintf(writer, "\"%s\": %s", ast.name, literal)
+	if ast.Name != "" && depth > 0 {
+		_, _ = fmt.Fprintf(writer, "\"%s\": %s", ast.Name, literal)
 	} else {
 		_, _ = fmt.Fprintf(writer, "%s", literal)
 	}
 }
 
 // prettyPrint pretty prints an AST.
-func prettyPrint(writer io.Writer, ast *ASTNode, compact bool) {
+func PrettyPrint(writer io.Writer, ast *ASTNode, compact bool) {
 	prettyPrintImpl(writer, ast, compact, 0)
 }

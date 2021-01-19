@@ -1,4 +1,4 @@
-package main
+package json
 
 import "testing"
 
@@ -13,8 +13,8 @@ var parseTestCases = []ParseTestCase{
 			{tokenType: JSON_TOKEN_STRING, string: "hello, world"},
 		},
 		ast: ASTNode{
-			value:  JSON_VALUE_STRING,
-			string: "hello, world",
+			Value:  JSON_VALUE_STRING,
+			String: "hello, world",
 		},
 	},
 	{
@@ -22,8 +22,8 @@ var parseTestCases = []ParseTestCase{
 			{tokenType: JSON_TOKEN_NUMBER, number: 3.14},
 		},
 		ast: ASTNode{
-			value:  JSON_VALUE_NUMBER,
-			number: 3.14,
+			Value:  JSON_VALUE_NUMBER,
+			Number: 3.14,
 		},
 	},
 	{
@@ -31,7 +31,7 @@ var parseTestCases = []ParseTestCase{
 			{tokenType: JSON_TOKEN_NULL},
 		},
 		ast: ASTNode{
-			value: JSON_VALUE_NULL,
+			Value: JSON_VALUE_NULL,
 		},
 	},
 	{
@@ -39,7 +39,7 @@ var parseTestCases = []ParseTestCase{
 			{tokenType: JSON_TOKEN_TRUE},
 		},
 		ast: ASTNode{
-			value: JSON_VALUE_TRUE,
+			Value: JSON_VALUE_TRUE,
 		},
 	},
 	{
@@ -47,7 +47,7 @@ var parseTestCases = []ParseTestCase{
 			{tokenType: JSON_TOKEN_FALSE},
 		},
 		ast: ASTNode{
-			value: JSON_VALUE_FALSE,
+			Value: JSON_VALUE_FALSE,
 		},
 	},
 	{
@@ -60,11 +60,11 @@ var parseTestCases = []ParseTestCase{
 			{tokenType: JSON_TOKEN_RIGHT_CURLY_BRACKET},
 		},
 		ast: ASTNode{
-			value: JSON_VALUE_OBJECT,
-			members: []*ASTNode{
+			Value: JSON_VALUE_OBJECT,
+			Members: []*ASTNode{
 				{
-					value: JSON_VALUE_OBJECT,
-					name:  "empty",
+					Value: JSON_VALUE_OBJECT,
+					Name:  "empty",
 				},
 			},
 		},
@@ -81,14 +81,14 @@ var parseTestCases = []ParseTestCase{
 			{tokenType: JSON_TOKEN_RIGHT_SQUARE_BRACKET},
 		},
 		ast: ASTNode{
-			value: JSON_VALUE_ARRAY,
-			values: []*ASTNode{
+			Value: JSON_VALUE_ARRAY,
+			Values: []*ASTNode{
 				{
-					value: JSON_VALUE_OBJECT,
-					members: []*ASTNode{
+					Value: JSON_VALUE_OBJECT,
+					Members: []*ASTNode{
 						{
-							name:  "empty",
-							value: JSON_VALUE_ARRAY,
+							Name:  "empty",
+							Value: JSON_VALUE_ARRAY,
 						},
 					},
 				},
@@ -100,11 +100,11 @@ var parseTestCases = []ParseTestCase{
 func TestParse(t *testing.T) {
 	for i := 0; i < len(parseTestCases); i++ {
 		parser := Parser{
-			tokens: parseTestCases[i].tokens,
+			Tokens: parseTestCases[i].tokens,
 		}
-		parser.parse()
+		parser.Parse()
 
-		if !equal(&parser.ast, &parseTestCases[i].ast) {
+		if !equal(&parser.Ast, &parseTestCases[i].ast) {
 			t.Fatal("unexpected AST")
 		}
 	}

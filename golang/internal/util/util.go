@@ -1,6 +1,6 @@
-package main
+package util
 
-func escapeString(str string) string {
+func EscapeString(str string) string {
 	if str == "" {
 		return ""
 	}
@@ -17,7 +17,7 @@ func escapeString(str string) string {
 	return result + "'"
 }
 
-func unescapeString(str string) string {
+func UnescapeString(str string) string {
 	if str == "" {
 		return ""
 	}

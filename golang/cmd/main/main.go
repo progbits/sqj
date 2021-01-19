@@ -3,6 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/progbits/sqjson/internal/json"
+	"github.com/progbits/sqjson/internal/vtable"
+
+	//"github.com/progbits/sqjson/internal/sql"
 	"io"
 	"os"
 	"strconv"
@@ -60,6 +64,12 @@ func main() {
 	options.query = os.Args[i]
 	i++
 
+	// Parse our query.
+	/*	scanner := sql.NewScanner([]byte(options.query))
+		parser := sql.NewParser(scanner)
+		stmt := parser.Parse()
+		fmt.Println(stmt)
+	*/
 	// Excess arguments after the query string are treated as files and mean we
 	// do not read from stdin. A single file named "-" is  treated as an alias
 	// for stdin.
@@ -76,17 +86,22 @@ func main() {
 	_, _ = io.Copy(buf, fin)
 
 	// Tokenize the input data.
-	tokenizer := Tokenizer{
-		buf: string(buf.Bytes()),
+	tokenizer := json.Tokenizer{
+		Buf: string(buf.Bytes()),
 	}
-	tokenizer.tokenize()
+	tokenizer.Tokenize()
 
 	// Parse the token stream.
-	parser := Parser{
-		tokens: tokenizer.tokens,
+	parser := json.Parser{
+		Tokens: tokenizer.Tokens,
 	}
-	parser.parse()
+	parser.Parse()
 
-	schema := buildTableSchema(&parser.ast)
-	exec(&parser.ast, schema, options)
+	schema := json.BuildTableSchema(&parser.Ast)
+	result := vtable.Exec(&parser.Ast, schema, options.query)
+
+	for _, node := range result {
+		json.PrettyPrint(ioOut, node, options.compact)
+		_, _ = fmt.Fprintf(ioOut, "\n")
+	}
 }

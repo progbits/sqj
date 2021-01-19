@@ -1,8 +1,9 @@
-package main
+package vtable
 
 import (
 	"database/sql"
-	"fmt"
+	"github.com/progbits/sqjson/internal/json"
+	"github.com/progbits/sqjson/internal/util"
 	"log"
 
 	"github.com/mattn/go-sqlite3"
@@ -10,21 +11,21 @@ import (
 
 // Default database driver. This is a global so our integration tests can
 // register their own drivers without stepping on each others toes.
-var driver = "sqlite_with_extensions"
+var Driver = "sqlite_with_extensions"
 
 type jsonModule struct {
-	ast     *ASTNode
-	options Options
-	schema  Schema
-	row     int
+	ast    *json.ASTNode
+	query  string
+	schema json.Schema
+	row    int
 }
 
 func (m *jsonModule) Create(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab, error) {
-	err := c.DeclareVTab(m.schema.createTableStmt)
+	err := c.DeclareVTab(m.schema.CreateTableStmt)
 	if err != nil {
 		return nil, err
 	}
-	return &jsonTable{ast: m.ast, schema: m.schema, options: m.options, row: &m.row}, nil
+	return &jsonTable{ast: m.ast, schema: m.schema, query: m.query, row: &m.row}, nil
 }
 
 func (m *jsonModule) Connect(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab, error) {
@@ -34,10 +35,10 @@ func (m *jsonModule) Connect(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab
 func (m *jsonModule) DestroyModule() {}
 
 type jsonTable struct {
-	ast     *ASTNode
-	options Options
-	schema  Schema
-	row     *int
+	ast    *json.ASTNode
+	query  string
+	schema json.Schema
+	row    *int
 }
 
 func (v *jsonTable) Open() (sqlite3.VTabCursor, error) {
@@ -56,33 +57,33 @@ type jsonCursor struct {
 }
 
 func (vc *jsonCursor) Column(c *sqlite3.SQLiteContext, col int) error {
-	columnName := unescapeString(vc.jsonTable.schema.columns[col])
+	columnName := util.UnescapeString(vc.jsonTable.schema.Columns[col])
 
-	var searchNode *ASTNode = nil
-	if vc.ast.value == JSON_VALUE_OBJECT {
+	var searchNode *json.ASTNode = nil
+	if vc.ast.Value == json.JSON_VALUE_OBJECT {
 		searchNode = vc.jsonTable.ast
-	} else if vc.ast.value == JSON_VALUE_ARRAY {
-		searchNode = vc.jsonTable.ast.values[*vc.row]
+	} else if vc.ast.Value == json.JSON_VALUE_ARRAY {
+		searchNode = vc.jsonTable.ast.Values[*vc.row]
 	}
-	columnNode := findNode(searchNode, columnName)
+	columnNode := json.FindNode(searchNode, columnName)
 
 	if columnNode == nil {
 		c.ResultNull()
 		return nil
 	}
 
-	switch columnNode.value {
-	case JSON_VALUE_OBJECT, JSON_VALUE_ARRAY:
+	switch columnNode.Value {
+	case json.JSON_VALUE_OBJECT, json.JSON_VALUE_ARRAY:
 		break
-	case JSON_VALUE_NUMBER:
-		c.ResultDouble(columnNode.number)
-	case JSON_VALUE_STRING:
-		c.ResultText(columnNode.string)
-	case JSON_VALUE_NULL:
+	case json.JSON_VALUE_NUMBER:
+		c.ResultDouble(columnNode.Number)
+	case json.JSON_VALUE_STRING:
+		c.ResultText(columnNode.String)
+	case json.JSON_VALUE_NULL:
 		c.ResultNull()
-	case JSON_VALUE_TRUE:
+	case json.JSON_VALUE_TRUE:
 		c.ResultBool(true)
-	case JSON_VALUE_FALSE:
+	case json.JSON_VALUE_FALSE:
 		c.ResultBool(false)
 	}
 	return nil
@@ -98,10 +99,10 @@ func (vc *jsonCursor) Next() error {
 }
 
 func (vc *jsonCursor) EOF() bool {
-	if vc.ast.value == JSON_VALUE_OBJECT {
+	if vc.ast.Value == json.JSON_VALUE_OBJECT {
 		return *vc.jsonTable.row > 0
 	}
-	return *vc.jsonTable.row > len(vc.ast.values)-1
+	return *vc.jsonTable.row > len(vc.ast.Values)-1
 }
 
 func (vc *jsonCursor) Rowid() (int64, error) {
@@ -112,33 +113,20 @@ func (vc *jsonCursor) Close() error {
 	return nil
 }
 
-func exec(ast *ASTNode, schema Schema, options Options) {
+func Exec(ast *json.ASTNode, schema json.Schema, query string) []*json.ASTNode {
 	jsonModule := jsonModule{
-		ast:     ast,
-		options: options,
-		schema:  schema,
+		ast:    ast,
+		query:  query,
+		schema: schema,
 	}
 
-	/*	// Only register "sqlite3_with_extensions" driver if is not already registered.
-		drivers := sql.Drivers()
-		sqliteRegistered := false
-		for _, driver := range drivers {
-			if driver == "sqlite3_with_extensions" {
-				sqliteRegistered = true
-				break;
-			}
-		}*/
-
-	//if !sqliteRegistered {
-	sql.Register(driver, &sqlite3.SQLiteDriver{
+	sql.Register(Driver, &sqlite3.SQLiteDriver{
 		ConnectHook: func(conn *sqlite3.SQLiteConn) error {
 			return conn.CreateModule("sqjson", &jsonModule)
 		},
 	})
-	//
-	//}
 
-	db, err := sql.Open(driver, ":memory:")
+	db, err := sql.Open(Driver, ":memory:")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -149,29 +137,30 @@ func exec(ast *ASTNode, schema Schema, options Options) {
 		log.Fatal(err)
 	}
 
-	stmt, err := db.Prepare(options.query)
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	nodes := make([]*json.ASTNode, 0)
 	rows, err := stmt.Query()
 	defer rows.Close()
 	for rows.Next() {
 		columns, _ := rows.Columns()
 		for i := 0; i < len(columns); i++ {
-			var columnNode *ASTNode = nil
-			if ast.value == JSON_VALUE_OBJECT {
-				columnNode = findNode(ast, columns[i])
-			} else if ast.value == JSON_VALUE_ARRAY {
-				columnNode = findNode(ast.values[jsonModule.row], columns[i])
+			var columnNode *json.ASTNode = nil
+			if ast.Value == json.JSON_VALUE_OBJECT {
+				columnNode = json.FindNode(ast, columns[i])
+			} else if ast.Value == json.JSON_VALUE_ARRAY {
+				columnNode = json.FindNode(ast.Values[jsonModule.row], columns[i])
 			}
 
 			if columnNode != nil {
-				prettyPrint(ioOut, columnNode, false)
-				_, _ = fmt.Fprintf(ioOut, "\n")
+				nodes = append(nodes, columnNode)
 			}
 		}
 	}
-
 	_ = db.Close()
+
+	return nodes
 }

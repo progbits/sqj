@@ -1,4 +1,4 @@
-package main
+package json
 
 import "testing"
 
@@ -169,13 +169,13 @@ var testCase = []TestCase{
 func TestTokenize(t *testing.T) {
 	for i := 0; i < len(testCase); i++ {
 		tokenizer := Tokenizer{
-			buf:    testCase[i].json,
+			Buf:    testCase[i].json,
 			pos:    0,
-			tokens: nil,
+			Tokens: nil,
 		}
-		tokenizer.tokenize()
+		tokenizer.Tokenize()
 
-		if len(tokenizer.tokens) != len(testCase[i].tokens) {
+		if len(tokenizer.Tokens) != len(testCase[i].tokens) {
 			t.Fatalf("unexpected number of tokens")
 		}
 	}

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/progbits/sqjson/internal/vtable"
+
 	"bytes"
 	"os"
 	"strings"
@@ -13,7 +15,7 @@ func TestMain(m *testing.M) {
 
 func TestCmd_StdIn_Select_Single_Element(t *testing.T) {
 	// Arrange.
-	driver = "TestCmd_StdIn_Select_Single_Element"
+	vtable.Driver = "TestCmd_StdIn_Select_Single_Element"
 	json := `
 		{
 				"α": 0.0072973525693,
@@ -43,7 +45,7 @@ func TestCmd_StdIn_Select_Single_Element(t *testing.T) {
 
 func TestCmd_StdIn_NestedObject(t *testing.T) {
 	// Arrange.
-	driver = "TestCmd_StdIn_NestedObject"
+	vtable.Driver = "TestCmd_StdIn_NestedObject"
 	json := `
 		[
 		  {
