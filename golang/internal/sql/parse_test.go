@@ -101,6 +101,9 @@ func checkExpression(t *testing.T, actual, expected Expr) {
 		checkValue(t, actual.(*LiteralExpr).value, expected.(*LiteralExpr).value)
 	case *IdentifierExpr:
 		checkValue(t, actual.(*IdentifierExpr).value, expected.(*IdentifierExpr).value)
+		if actual.(*IdentifierExpr).kind != expected.(*IdentifierExpr).kind {
+			t.Error("unexpected identifier kind")
+		}
 	case *UnaryExpr:
 		checkOperator(t, actual.(*UnaryExpr).operator, expected.(*UnaryExpr).operator)
 		checkExpression(t, actual.(*UnaryExpr).expr, expected.(*UnaryExpr).expr)
@@ -453,7 +456,7 @@ func TestParseInExpr(t *testing.T) {
 			expr: &ExistsExpr{
 				selectStmt: SelectStmt{
 					resultColumn: []ResultColumn{{expr: &IdentifierExpr{value: "a"}}},
-					tableList:    TableList{source: &IdentifierExpr{value: "b"}},
+					tableList:    TableList{source: &IdentifierExpr{value: "b", kind: Table}},
 					whereClause: &BinaryExpr{
 						operator: EQ,
 						left:     &IdentifierExpr{value: "a"},
@@ -478,7 +481,7 @@ func TestParseInverseInExpr(t *testing.T) {
 				inverse: true,
 				selectStmt: SelectStmt{
 					resultColumn: []ResultColumn{{expr: &IdentifierExpr{value: "a"}}},
-					tableList:    TableList{source: &IdentifierExpr{value: "b"}},
+					tableList:    TableList{source: &IdentifierExpr{value: "b", kind: Table}},
 					whereClause: &BinaryExpr{
 						operator: EQ,
 						left:     &IdentifierExpr{value: "a"},
@@ -586,10 +589,10 @@ type FromTestCase struct {
 
 var tableListTestCases = [...]FromTestCase{
 	{"SELECT a, b FROM a_table INNER JOIN b_table ON a_table.a == b_table.c;", TableList{
-		source: &IdentifierExpr{value: "a_table"},
+		source: &IdentifierExpr{value: "a_table", kind: Table},
 		joins: []JoinExpr{{
 			joinOp: JoinOperator{constraint: INNER},
-			source: &IdentifierExpr{value: "b_table"},
+			source: &IdentifierExpr{value: "b_table", kind: Table},
 			joinArgs: JoinArgs{
 				onExpr: &BinaryExpr{
 					operator: EQ,
@@ -600,20 +603,20 @@ var tableListTestCases = [...]FromTestCase{
 		}},
 	}},
 	{"SELECT * FROM a INNER JOIN b USING(c, d);", TableList{
-		source: &IdentifierExpr{value: "a"},
+		source: &IdentifierExpr{value: "a", kind: Table},
 		joins: []JoinExpr{{
 			joinOp: JoinOperator{constraint: INNER},
-			source: &IdentifierExpr{value: "b"},
+			source: &IdentifierExpr{value: "b", kind: Table},
 			joinArgs: JoinArgs{
 				using: []Expr{&IdentifierExpr{value: "c"}, &IdentifierExpr{value: "d"}},
 			},
 		}},
 	}},
 	{"SELECT * FROM a LEFT INNER JOIN b USING(c, d);", TableList{
-		source: &IdentifierExpr{value: "a"},
+		source: &IdentifierExpr{value: "a", kind: Table},
 		joins: []JoinExpr{{
 			joinOp: JoinOperator{constraint: INNER, operator: LEFT},
-			source: &IdentifierExpr{value: "b"},
+			source: &IdentifierExpr{value: "b", kind: Table},
 			joinArgs: JoinArgs{
 				using: []Expr{&IdentifierExpr{value: "c"}, &IdentifierExpr{value: "d"}},
 			},

@@ -180,7 +180,7 @@ func (p *Parser) parseTableOrSubQuery() interface{} {
 	token, value := p.token, p.value
 	switch p.next(); token {
 	case IDENTIFIER:
-		return &IdentifierExpr{value: value}
+		return &IdentifierExpr{value: value, kind: Table}
 	case LP:
 		p.assertAndConsumeToken(SELECT)
 		stmt := p.parseSelectStmt()

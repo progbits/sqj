@@ -1,5 +1,12 @@
 package sql
 
+type IdentifierKind int
+
+const (
+	Column IdentifierKind = iota
+	Table
+)
+
 // Empty expression interface.
 type Expr interface {
 	isExpr()
@@ -31,6 +38,7 @@ type (
 
 	IdentifierExpr struct {
 		value string
+		kind IdentifierKind
 	}
 
 	UnaryExpr struct {
@@ -165,7 +173,10 @@ func extractIdentifierFromExpression(expr Expr, idents *[]string) {
 	case *LiteralExpr:
 		*idents = append(*idents, expr.(*LiteralExpr).value)
 	case *IdentifierExpr:
-		*idents = append(*idents, expr.(*IdentifierExpr).value)
+		value := expr.(*IdentifierExpr)
+		if value.kind == Column {
+			*idents = append(*idents, expr.(*IdentifierExpr).value)
+		}
 	case *UnaryExpr:
 		extractIdentifierFromExpression(expr.(*UnaryExpr).expr, idents)
 	case *BinaryExpr:
@@ -222,7 +233,8 @@ func extractIdentifiersImpl(stmt *SelectStmt, idents *[]string) {
 	case Expr:
 		extractIdentifierFromExpression(stmt.tableList.source.(Expr), idents)
 	case SelectStmt:
-		extractIdentifiersImpl(stmt.tableList.source.(*SelectStmt), idents)
+		selectStmt := stmt.tableList.source.(SelectStmt)
+		extractIdentifiersImpl(&selectStmt, idents)
 	default:
 		panic("unexpected table list source")
 	}
