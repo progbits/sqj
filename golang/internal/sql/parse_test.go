@@ -240,6 +240,16 @@ var exprTestCases = [...]ExpressionTestCase{
 	{"SELECT 5;", []Expr{&LiteralExpr{value: "5"}}},
 	//{"SELECT \"hello, world\";", []Expr{}{LiteralExpr{value: "hello, world"}}},
 	{"SELECT a;", []Expr{&IdentifierExpr{value: "a"}}},
+	{"SELECT α, γ, δ, ϵ, ζ, θ, μ, ψ;", []Expr{
+		&IdentifierExpr{value: "α"},
+		&IdentifierExpr{value: "γ"},
+		&IdentifierExpr{value: "δ"},
+		&IdentifierExpr{value: "ϵ"},
+		&IdentifierExpr{value: "ζ"},
+		&IdentifierExpr{value: "θ"},
+		&IdentifierExpr{value: "μ"},
+		&IdentifierExpr{value: "ψ"},
+	}},
 	// unary operators
 	{"SELECT -a;", []Expr{&UnaryExpr{operator: MINUS, expr: &IdentifierExpr{value: "a"}}}},
 	{"SELECT -(a + b > 2);", []Expr{
