@@ -46,11 +46,35 @@ func scanAll(s *Scanner) (tokens []TokenValuePair) {
 }
 
 var identifierTestCases = []TestCase{
-	//{"[];", []TokenValuePair{{IDENTIFIER, "[]"}, {SEMI, ""}}},
+	{"[];", []TokenValuePair{{IDENTIFIER, "[]"}, {SEMI, ""}}},
+	{"α;", []TokenValuePair{
+		{IDENTIFIER, "α"},
+		{SEMI, ""},
+	}},
+	{"α, γ, δ, ϵ, ζ, θ, μ, ψ;", []TokenValuePair{
+		{IDENTIFIER, "α"},
+		{COMMA, ""},
+		{IDENTIFIER, "γ"},
+		{COMMA, ""},
+		{IDENTIFIER, "δ"},
+		{COMMA, ""},
+		{IDENTIFIER, "ϵ"},
+		{COMMA, ""},
+		{IDENTIFIER, "ζ"},
+		{COMMA, ""},
+		{IDENTIFIER, "θ"},
+		{COMMA, ""},
+		{IDENTIFIER, "μ"},
+		{COMMA, ""},
+		{IDENTIFIER, "ψ"},
+		{SEMI, ""},
+	}},
 	{"test;", []TokenValuePair{{IDENTIFIER, "test"}, {SEMI, ""}}},
 	{"test_table;", []TokenValuePair{{IDENTIFIER, "test_table"}, {SEMI, ""}}},
 	{"_test_table;", []TokenValuePair{{IDENTIFIER, "_test_table"}, {SEMI, ""}}},
 	{"_t1e2s3t_4t5a6l7e;", []TokenValuePair{{IDENTIFIER, "_t1e2s3t_4t5a6l7e"}, {SEMI, ""}}},
+	{"test$;", []TokenValuePair{{IDENTIFIER, "test$"}, {SEMI, ""}}},
+	{"test$table;", []TokenValuePair{{IDENTIFIER, "test$table"}, {SEMI, ""}}},
 	{"test_database.test_table.test_column;",
 		[]TokenValuePair{
 			{IDENTIFIER, "test_database"},
@@ -82,9 +106,9 @@ func TestIdentifiers(t *testing.T) {
 }
 
 var realNumberTestCases = []TestCase{
-	{"42.;", []TokenValuePair{{NUMERIC_LITERAL, "42."}, {SEMI, ""}}},
-	{"4e2;", []TokenValuePair{{NUMERIC_LITERAL, "4e2"}, {SEMI, ""}}},
-	{"123.456e-78;", []TokenValuePair{{NUMERIC_LITERAL, "123.456e-78"}, {SEMI, ""}}},
+	//{"42.;", []TokenValuePair{{NUMERIC_LITERAL, "42."}, {SEMI, ""}}},
+	//{"4e2;", []TokenValuePair{{NUMERIC_LITERAL, "4e2"}, {SEMI, ""}}},
+	//{"123.456e-78;", []TokenValuePair{{NUMERIC_LITERAL, "123.456e-78"}, {SEMI, ""}}},
 	{".1E2;", []TokenValuePair{{NUMERIC_LITERAL, ".1E2"}, {SEMI, ""}}},
 }
 

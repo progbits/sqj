@@ -3,6 +3,7 @@ package sql
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Token represents a token scanned from an input stream.
@@ -383,25 +384,27 @@ type Scanner struct {
 
 // NewScanner creates a new scanner from a statement.
 func NewScanner(statement []byte) *Scanner {
-	scanner := &Scanner{statement, 0, rune(statement[0])}
+	scanner := &Scanner{
+		input: statement,
+	}
+	scanner.next()
+
 	return scanner
 }
 
 // ScanToken scans the next token, returning the token and its value (if applicable).
 func (s *Scanner) ScanToken() (Token, string) {
-	if s.cursor == len(s.input) {
-		return EOF, ""
-	}
 	s.skipWhitespace()
 
 	// Greedily match identifiers, keywords and literals.
 	switch c := s.char; {
+	case c == 0:
+		return EOF, ""
 	case isLetter(c):
-		idStart := s.cursor
-		for isLetter(s.char) || isDigit(s.char) {
-			s.next()
+		value := string(c)
+		for s.next(); isLetter(s.char) || unicode.IsDigit(s.char); s.next() {
+			value += string(s.char)
 		}
-		value := string(s.input[idStart:s.cursor])
 
 		for i := ABORT; i <= WITHOUT; i++ {
 			if strings.ToUpper(value) == tokens[i] {
@@ -410,11 +413,10 @@ func (s *Scanner) ScanToken() (Token, string) {
 		}
 		return IDENTIFIER, value
 	case isDigit(c) || c == '.' && isDigit(s.peek()):
-		iStart := s.cursor
-		for isLetter(s.char) || isDigit(s.char) || s.char == '.' || s.char == '-' {
-			s.next()
+		value := string(c)
+		for s.next(); isLetter(s.char) || isDigit(s.char) || s.char == '.' || s.char == '-'; s.next() {
+			value += string(s.char)
 		}
-		value := string(s.input[iStart:s.cursor])
 		return NUMERIC_LITERAL, value
 	case c == '\'':
 		// String literal, consume to peek '\'', ignoring nested '\'' for now.
@@ -522,33 +524,57 @@ func (s *Scanner) ScanToken() (Token, string) {
 // next reads the next character from the input, or sets `s.char = -1`.
 // TODO: Actually handle unicode.
 func (s *Scanner) next() {
-	if s.cursor == len(s.input)-1 {
-		s.char = -1 // We've run out of input.
-		return
+	if s.cursor < len(s.input) {
+		if cur := rune(s.input[s.cursor]); cur == utf8.RuneError {
+			panic("malformed input")
+		} else if cur >= utf8.RuneSelf {
+			char, size := utf8.DecodeRune(s.input[s.cursor:])
+			s.char = char
+			s.cursor += size
+		} else {
+			s.char = cur
+			s.cursor += 1
+		}
+	} else {
+		s.char = 0 // Unicode NULL.
 	}
-	s.cursor += 1
-	s.char = rune(s.input[s.cursor])
 }
 
 // peek returns the next character from the input without advancing the cursor.
 // TODO: Actually handle unicode.
 func (s *Scanner) peek() rune {
-	if s.cursor == len(s.input)-1 {
-		return -1
+	if s.cursor < len(s.input) {
+		if cur := rune(s.input[s.cursor]); cur == utf8.RuneError {
+			panic("malformed input")
+		} else if cur >= utf8.RuneSelf {
+			char, _ := utf8.DecodeRune(s.input[s.cursor:])
+			return char
+		} else {
+			return cur
+		}
 	}
-	return rune(s.input[s.cursor+1])
+	return 0 // Unicode NULL.
 }
 
 // skipWhitespace advances the cursor to the next non-whitespace character.
 func (s *Scanner) skipWhitespace() {
-	for unicode.IsSpace(rune(s.input[s.cursor])) {
+	for unicode.IsSpace(s.char) {
 		s.next()
 	}
 }
 
 // isLetter returns true if char is and underscore or a letter.
 func isLetter(char rune) bool {
-	return char == '_' || char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z'
+	if unicode.IsLetter(char) {
+		return true
+	}
+
+	switch char {
+	case '_', '[', ']', '$':
+		return true
+	default:
+		return false
+	}
 }
 
 // isDigit returns true if char is a digit between 0 and 9.
