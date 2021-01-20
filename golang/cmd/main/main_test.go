@@ -1,21 +1,25 @@
 package main
 
 import (
-	"github.com/progbits/sqjson/internal/vtable"
-
 	"bytes"
+	"fmt"
+	"github.com/progbits/sqjson/internal/vtable"
 	"os"
 	"strings"
 	"testing"
 )
 
+type TestCase struct {
+	query    string
+	expected string
+}
+
 func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func TestCmd_StdIn_Select_Single_Element(t *testing.T) {
+func TestCmd_Numerical_Formatting(t *testing.T) {
 	// Arrange.
-	vtable.Driver = "TestCmd_StdIn_Select_Single_Element"
 	json := `
 		{
 				"α": 0.0072973525693,
@@ -28,18 +32,33 @@ func TestCmd_StdIn_Select_Single_Element(t *testing.T) {
 				"ψ": 3.359885666243177553172011302918927179688905133732
 		}
 	`
-	ioIn = bytes.NewReader([]byte(json))
-	ioOut = bytes.NewBuffer(nil)
-	ioErr = bytes.NewBuffer(nil)
 
-	// Act.
-	os.Args = []string{"./sqj", "SELECT ζ FROM []", "-"}
-	main()
+	testCases := []TestCase{
+		{"α", "0.0072973525693"},
+		{"γ", "0.5772156649015329"},
+		{"δ", "4.66920160910299"},
+		{"ϵ", "8854187812813"},
+		{"ζ", "1.2020569031595942"},
+		{"θ", "90"},
+		{"μ", "1.2566370614e-06"},
+		{"ψ", "3.3598856662431777"},
+	}
 
-	// Assert
-	result := ioOut.(*bytes.Buffer).String()
-	if strings.Trim(result, "\n") != "1.2020569031595942" {
-		t.Error("unexpected result")
+	for i := 0; i < len(testCases); i++ {
+		vtable.Driver = fmt.Sprintf("TestCmd_StdIn_Select_Single_Element_%d", i)
+		ioIn = bytes.NewReader([]byte(json))
+		ioOut = bytes.NewBuffer(nil)
+		ioErr = bytes.NewBuffer(nil)
+
+		// Act.
+		os.Args = []string{"./sqj", fmt.Sprintf("SELECT %s FROM []", testCases[i].query), "-"}
+		main()
+
+		// Assert
+		result := ioOut.(*bytes.Buffer).String()
+		if strings.Trim(result, "\n") != testCases[i].expected {
+			t.Error("unexpected result")
+		}
 	}
 }
 
