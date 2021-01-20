@@ -38,7 +38,7 @@ type (
 
 	IdentifierExpr struct {
 		value string
-		kind IdentifierKind
+		kind  IdentifierKind
 	}
 
 	UnaryExpr struct {
@@ -166,7 +166,7 @@ type SelectStmt struct {
 }
 
 // extractIdentifierFromExpression returns all identifiers present in an expression
-func extractIdentifierFromExpression(expr Expr, idents *[]string) {
+func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents *[]string) {
 	switch expr.(type) {
 	case *StarExpr:
 		*idents = append(*idents, "*")
@@ -174,96 +174,95 @@ func extractIdentifierFromExpression(expr Expr, idents *[]string) {
 		*idents = append(*idents, expr.(*LiteralExpr).value)
 	case *IdentifierExpr:
 		value := expr.(*IdentifierExpr)
-		if value.kind == Column {
+		if value.kind == kind {
 			*idents = append(*idents, expr.(*IdentifierExpr).value)
 		}
 	case *UnaryExpr:
-		extractIdentifierFromExpression(expr.(*UnaryExpr).expr, idents)
+		extractIdentifierFromExpression(expr.(*UnaryExpr).expr, kind, idents)
 	case *BinaryExpr:
-		extractIdentifierFromExpression(expr.(*BinaryExpr).left, idents)
-		extractIdentifierFromExpression(expr.(*BinaryExpr).right, idents)
+		extractIdentifierFromExpression(expr.(*BinaryExpr).left, kind, idents)
+		extractIdentifierFromExpression(expr.(*BinaryExpr).right, kind, idents)
 	case *FunctionCallExpr:
 		funCallExpr := expr.(*FunctionCallExpr)
 		for i := 0; i < len(funCallExpr.operands); i++ {
-			extractIdentifierFromExpression(funCallExpr.operands[i], idents)
+			extractIdentifierFromExpression(funCallExpr.operands[i], kind, idents)
 		}
 	case *CastExpr:
-		extractIdentifierFromExpression(expr.(*CastExpr).expr, idents)
+		extractIdentifierFromExpression(expr.(*CastExpr).expr, kind, idents)
 	case *CollateExpr:
-		extractIdentifierFromExpression(expr.(*CollateExpr).expr, idents)
+		extractIdentifierFromExpression(expr.(*CollateExpr).expr, kind, idents)
 	case *StringMatchExpr:
-		extractIdentifierFromExpression(expr.(*StringMatchExpr).left, idents)
-		extractIdentifierFromExpression(expr.(*StringMatchExpr).right, idents)
-		extractIdentifierFromExpression(expr.(*StringMatchExpr).escapeExpr, idents)
+		extractIdentifierFromExpression(expr.(*StringMatchExpr).left, kind, idents)
+		extractIdentifierFromExpression(expr.(*StringMatchExpr).right, kind, idents)
+		extractIdentifierFromExpression(expr.(*StringMatchExpr).escapeExpr, kind, idents)
 	case *NullableExpr:
-		extractIdentifierFromExpression(expr.(*NullableExpr).expr, idents)
+		extractIdentifierFromExpression(expr.(*NullableExpr).expr, kind, idents)
 	case *IsExpr:
-		extractIdentifierFromExpression(expr.(*IsExpr).left, idents)
-		extractIdentifierFromExpression(expr.(*IsExpr).right, idents)
+		extractIdentifierFromExpression(expr.(*IsExpr).left, kind, idents)
+		extractIdentifierFromExpression(expr.(*IsExpr).right, kind, idents)
 	case *BetweenExpr:
-		extractIdentifierFromExpression(expr.(*BetweenExpr).expr, idents)
-		extractIdentifierFromExpression(expr.(*BetweenExpr).left, idents)
-		extractIdentifierFromExpression(expr.(*BetweenExpr).right, idents)
+		extractIdentifierFromExpression(expr.(*BetweenExpr).expr, kind, idents)
+		extractIdentifierFromExpression(expr.(*BetweenExpr).left, kind, idents)
+		extractIdentifierFromExpression(expr.(*BetweenExpr).right, kind, idents)
 	case *InExpr:
-		extractIdentifierFromExpression(expr.(*InExpr).expr, idents)
+		extractIdentifierFromExpression(expr.(*InExpr).expr, kind, idents)
 	case *ExistsExpr:
-		extractIdentifiersImpl(&expr.(*ExistsExpr).selectStmt, idents)
+		extractIdentifiersImpl(&expr.(*ExistsExpr).selectStmt, kind, idents)
 	case *CaseExpr:
 		caseExpr := expr.(*CaseExpr)
-		extractIdentifierFromExpression(caseExpr.expr, idents)
+		extractIdentifierFromExpression(caseExpr.expr, kind, idents)
 		for i := 0; i < len(caseExpr.when); i++ {
-			extractIdentifierFromExpression(caseExpr.when[i], idents)
+			extractIdentifierFromExpression(caseExpr.when[i], kind, idents)
 		}
 		for i := 0; i < len(caseExpr.then); i++ {
-			extractIdentifierFromExpression(caseExpr.then[i], idents)
+			extractIdentifierFromExpression(caseExpr.then[i], kind, idents)
 		}
-		extractIdentifierFromExpression(caseExpr.elseExpr, idents)
+		extractIdentifierFromExpression(caseExpr.elseExpr, kind, idents)
 	}
 }
 
-func extractIdentifiersImpl(stmt *SelectStmt, idents *[]string) {
+func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents *[]string) {
 	// Extract identifiers from result columns.
 	for i := 0; i < len(stmt.resultColumn); i++ {
-		extractIdentifierFromExpression(stmt.resultColumn[i].expr, idents)
+		extractIdentifierFromExpression(stmt.resultColumn[i].expr, kind, idents)
 	}
 
 	// Handle the case where our table list either an identifier or a sub-query.
 	// TODO: Handle TableList joins.
 	switch stmt.tableList.source.(type) {
 	case Expr:
-		extractIdentifierFromExpression(stmt.tableList.source.(Expr), idents)
+		extractIdentifierFromExpression(stmt.tableList.source.(Expr), kind, idents)
 	case SelectStmt:
 		selectStmt := stmt.tableList.source.(SelectStmt)
-		extractIdentifiersImpl(&selectStmt, idents)
+		extractIdentifiersImpl(&selectStmt, kind, idents)
 	default:
 		panic("unexpected table list source")
 	}
 
 	// Handle WHERE clause expressions.
-	extractIdentifierFromExpression(stmt.whereClause, idents)
+	extractIdentifierFromExpression(stmt.whereClause, kind, idents)
 
 	// Handle GROUP BY clause.
 	for i := 0; i < len(stmt.groupByClause); i++ {
-		extractIdentifierFromExpression(stmt.groupByClause[i], idents)
+		extractIdentifierFromExpression(stmt.groupByClause[i], kind, idents)
 	}
 
 	// Handle HAVING clause.
-	extractIdentifierFromExpression(stmt.havingClause, idents)
+	extractIdentifierFromExpression(stmt.havingClause, kind, idents)
 
 	// Handle ORDER BY clauses.
 	for i := 0; i < len(stmt.orderByClause); i++ {
-		extractIdentifierFromExpression(stmt.orderByClause[i].expr, idents)
+		extractIdentifierFromExpression(stmt.orderByClause[i].expr, kind, idents)
 	}
 
 	// Handle LIMIT clause.
-	extractIdentifierFromExpression(stmt.limitClause.skip, idents)
-	extractIdentifierFromExpression(stmt.limitClause.count, idents)
+	extractIdentifierFromExpression(stmt.limitClause.skip, kind, idents)
+	extractIdentifierFromExpression(stmt.limitClause.count, kind, idents)
 }
 
 // ExtractIdentifiers returns all identifiers from a SELECT statement.
-func ExtractIdentifiers(stmt *SelectStmt) []string {
+func ExtractIdentifiers(stmt *SelectStmt, kind IdentifierKind) []string {
 	idents := make([]string, 0)
-	extractIdentifiersImpl(stmt, &idents)
-
+	extractIdentifiersImpl(stmt, kind, &idents)
 	return idents
 }

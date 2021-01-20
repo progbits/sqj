@@ -21,7 +21,7 @@ func TestExtractIdentifiers(t *testing.T) {
 	}
 
 	// Act.
-	identifiers := ExtractIdentifiers(&stmt)
+	identifiers := ExtractIdentifiers(&stmt, Column)
 
 	// Assert.
 	expectedIdentifiers := []string{
