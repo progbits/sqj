@@ -2,7 +2,7 @@ package sql
 
 import "testing"
 
-func TestExtractIdentifiers(t *testing.T) {
+func TestExtractIdentifiers_Columns(t *testing.T) {
 	// Arrange.
 
 	// SELECT a FROM (SELECT b FROM c WHERE b == 5) AS d;
@@ -26,6 +26,46 @@ func TestExtractIdentifiers(t *testing.T) {
 	// Assert.
 	expectedIdentifiers := []string{
 		"a", "b", "5",
+	}
+
+	if len(identifiers) != len(expectedIdentifiers) {
+		t.Error("unexpected number of identifiers")
+	}
+
+	for i := 0; i < len(identifiers); i++ {
+		found := false
+		for j := 0; j < len(expectedIdentifiers); j++ {
+			if identifiers[i] != expectedIdentifiers[j] {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			t.Error("unexpected identifier")
+		}
+	}
+}
+
+func TestExtractIdentifiers_Tables(t *testing.T) {
+	// Arrange.
+
+	// SELECT * FROM [];
+	stmt := SelectStmt{
+		resultColumn: []ResultColumn{
+			{expr: &StarExpr{}},
+		},
+		tableList: TableList{
+			source: &IdentifierExpr{kind: Table, value: "*"},
+		},
+	}
+
+	// Act.
+	identifiers := ExtractIdentifiers(&stmt, Table)
+
+	// Assert.
+	expectedIdentifiers := []string{
+		"[]",
 	}
 
 	if len(identifiers) != len(expectedIdentifiers) {

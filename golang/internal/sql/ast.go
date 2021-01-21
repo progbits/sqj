@@ -169,9 +169,13 @@ type SelectStmt struct {
 func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents *[]string) {
 	switch expr.(type) {
 	case *StarExpr:
-		*idents = append(*idents, "*")
+		if kind != Table {
+			*idents = append(*idents, "*")
+		}
 	case *LiteralExpr:
-		*idents = append(*idents, expr.(*LiteralExpr).value)
+		if kind != Table {
+			*idents = append(*idents, expr.(*LiteralExpr).value)
+		}
 	case *IdentifierExpr:
 		value := expr.(*IdentifierExpr)
 		if value.kind == kind {

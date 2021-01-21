@@ -44,32 +44,3 @@ func collectColumns(ast *ASTNode, schema *Schema, prefix string) {
 	escaped := util.EscapeString(columnName)
 	schema.Columns = append(schema.Columns, escaped)
 }
-
-func BuildTableSchema(ast *ASTNode) Schema {
-	schema := Schema{}
-	if ast.Value == JSON_VALUE_OBJECT {
-		collectColumns(ast, &schema, "")
-		if len(ast.Members) == 0 {
-			schema.Columns = append(schema.Columns, "INTERNAL_PLACEHOLDER")
-		}
-	} else if ast.Value == JSON_VALUE_ARRAY {
-		// Use the first entry of the array as the schema.
-		// TODO: We should probably add a flag to relax this assumption and take
-		//  the set of all values ioIn the input.
-		collectColumns(ast.Values[0], &schema, "")
-		if len(ast.Values) == 0 {
-			schema.Columns = append(schema.Columns, "INTERNAL_PLACEHOLDER")
-		}
-	}
-
-	// Build our 'CREATE TABLE ...' statement from our columns.
-	schema.CreateTableStmt = "CREATE TABLE [] ("
-	for i := 0; i < len(schema.Columns); i++ {
-		schema.CreateTableStmt += schema.Columns[i]
-		if i < len(schema.Columns)-1 {
-			schema.CreateTableStmt += ","
-		}
-	}
-	schema.CreateTableStmt += ")"
-	return schema
-}

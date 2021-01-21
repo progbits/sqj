@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/progbits/sqjson/internal/json"
+	"github.com/progbits/sqjson/internal/sql"
 	"github.com/progbits/sqjson/internal/vtable"
 
 	//"github.com/progbits/sqjson/internal/sql"
@@ -64,12 +65,11 @@ func main() {
 	options.query = os.Args[i]
 	i++
 
-	// Parse our query.
-	/*	scanner := sql.NewScanner([]byte(options.query))
-		parser := sql.NewParser(scanner)
-		stmt := parser.Parse()
-		fmt.Println(stmt)
-	*/
+	// Parse our SQL query.
+	scanner := sql.NewScanner([]byte(options.query))
+	sqlParser := sql.NewParser(scanner)
+	stmt := sqlParser.Parse()
+
 	// Excess arguments after the query string are treated as files and mean we
 	// do not read from stdin. A single file named "-" is  treated as an alias
 	// for stdin.
@@ -92,13 +92,18 @@ func main() {
 	tokenizer.Tokenize()
 
 	// Parse the token stream.
-	parser := json.Parser{
+	jsonParser := json.Parser{
 		Tokens: tokenizer.Tokens,
 	}
-	parser.Parse()
+	jsonParser.Parse()
 
-	schema := json.BuildTableSchema(&parser.Ast)
-	result := vtable.Exec(&parser.Ast, schema, options.query)
+	// Query the virtual table to generate our result ASTs.
+	clientData := vtable.ClientData{
+		JsonAst: &jsonParser.Ast,
+		SqlAst:  &stmt,
+		Query:   options.query,
+	}
+	result := vtable.Exec(&clientData)
 
 	for _, node := range result {
 		json.PrettyPrint(ioOut, node, options.compact)
