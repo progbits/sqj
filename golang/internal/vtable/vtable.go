@@ -91,7 +91,18 @@ func (v *jsonTable) Open() (sqlite3.VTabCursor, error) {
 }
 
 func (v *jsonTable) BestIndex(csts []sqlite3.InfoConstraint, ob []sqlite3.InfoOrderBy) (*sqlite3.IndexResult, error) {
-	return &sqlite3.IndexResult{}, nil
+	used := make([]bool, len(csts))
+	for c, cst := range csts {
+		if cst.Usable && cst.Op == sqlite3.OpEQ {
+			used[c] = true
+		}
+	}
+
+	return &sqlite3.IndexResult{
+		IdxNum: 0,
+		IdxStr: "default",
+		Used:   used,
+	}, nil
 }
 
 func (v *jsonTable) Disconnect() error { return nil }

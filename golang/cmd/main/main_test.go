@@ -221,22 +221,18 @@ func TestCmd_StdIn_SelectFromSubArray(t *testing.T) {
 	ioErr = bytes.NewBuffer(nil)
 
 	// Act.
-	os.Args = []string{"./sqj", "SELECT lag FROM metric", "-"}
+	os.Args = []string{"./sqj", "SELECT lag FROM metric WHERE skew > 0", "-"}
 	main()
 
 	// Assert
 	result := ioOut.(*bytes.Buffer).String()
 	result = strings.Trim(result, "\n")
 	expected := []string{
-		"20.67871",
 		"-33.50249",
-		"-78.999041",
 		"-10.764641",
 		"-84.682348",
-		"-61.955773",
 		"-60.446643",
 		"52.830741",
-		"56.008626",
 	}
 
 	splitResult := strings.Split(result, "\n")
