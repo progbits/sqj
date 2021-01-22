@@ -154,3 +154,99 @@ func TestCmd_StdIn_NestedObject(t *testing.T) {
 		}
 	}
 }
+
+func TestCmd_StdIn_SelectFromSubArray(t *testing.T) {
+	// Arrange.
+	vtable.Driver = "TestCmd_StdIn_SelectFromSubArray"
+	json := `
+		[
+		  {
+			"guid": "9b19d50a-cec1-42e9-b7e3-8899d426a541",
+			"isActive": false,
+			"metric": [
+			  {
+				"lag": 20.67871,
+				"skew": -147.55678
+			  },
+			  {
+				"lag": -33.50249,
+				"skew": 96.342544
+			  },
+			  {
+				"lag": -78.999041,
+				"skew": -73.063277
+			  }
+			]
+		  },
+		  {
+			"guid": "2e7a1b41-306f-4fad-86b4-d07e49cd6e4f",
+			"isActive": true,
+			"metric": [
+			  {
+				"lag": -10.764641,
+				"skew": 129.430546
+			  },
+			  {
+				"lag": -84.682348,
+				"skew": 129.620258
+			  },
+			  {
+				"lag": -61.955773,
+				"skew": -104.713877
+			  }
+			]
+		  },
+		  {
+			"guid": "c73211b3-65b4-4d0c-8806-3c3b4dfecff0",
+			"isActive": true,
+			"metric": [
+			  {
+				"lag": -60.446643,
+				"skew": 109.276407
+			  },
+			  {
+				"lag": 52.830741,
+				"skew": 54.130786
+			  },
+			  {
+				"lag": 56.008626,
+				"skew": -26.937118
+			  }
+			]
+		  }
+		]
+	`
+	ioIn = bytes.NewReader([]byte(json))
+	ioOut = bytes.NewBuffer(nil)
+	ioErr = bytes.NewBuffer(nil)
+
+	// Act.
+	os.Args = []string{"./sqj", "SELECT lag FROM metric", "-"}
+	main()
+
+	// Assert
+	result := ioOut.(*bytes.Buffer).String()
+	result = strings.Trim(result, "\n")
+	expected := []string{
+		"20.67871",
+		"-33.50249",
+		"-78.999041",
+		"-10.764641",
+		"-84.682348",
+		"-61.955773",
+		"-60.446643",
+		"52.830741",
+		"56.008626",
+	}
+
+	splitResult := strings.Split(result, "\n")
+	if len(splitResult) != len(expected) {
+		t.Error("unexpected number of values")
+	}
+
+	for i, value := range splitResult {
+		if strings.Trim(value, "\n") != expected[i] {
+			t.Error("unexpected values")
+		}
+	}
+}

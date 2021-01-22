@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/progbits/sqjson/internal/json"
 	sqlj "github.com/progbits/sqjson/internal/sql"
-	"github.com/progbits/sqjson/internal/util"
 	"log"
 
 	"github.com/mattn/go-sqlite3"
@@ -24,16 +23,26 @@ type ClientData struct {
 type jsonModule struct {
 	clientData       *ClientData
 	createTableStmts []string
-	row              int
+	result           *map[string]*json.ASTNode
 }
 
 func (m *jsonModule) Create(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab, error) {
+	if len(args) < 1 {
+		panic("expected table name as argument")
+	}
+
 	err := c.DeclareVTab(m.createTableStmts[0])
 	if err != nil {
 		return nil, err
 	}
 
-	return &jsonTable{clientData: m.clientData, row: &m.row}, nil
+	table := &jsonTable{
+		clientData: m.clientData,
+		table:      args[2],
+		result:     m.result,
+	}
+
+	return table, nil
 }
 
 func (m *jsonModule) Connect(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab, error) {
@@ -44,14 +53,39 @@ func (m *jsonModule) DestroyModule() {}
 
 type jsonTable struct {
 	clientData *ClientData
-	row        *int
+	table      string
+	x          int
+	y          int
+	result     *map[string]*json.ASTNode
 }
 
 func (v *jsonTable) Open() (sqlite3.VTabCursor, error) {
+	var rootNode *json.ASTNode = nil
+	if v.table == "[]" {
+		// Querying top level node.
+		rootNode = v.clientData.JsonAst
+	} else {
+		// Querying a nested array.
+		if v.clientData.JsonAst.Value == json.JSON_VALUE_OBJECT {
+			rootNode = json.FindNode(v.clientData.JsonAst, v.table)
+		} else if v.clientData.JsonAst.Value == json.JSON_VALUE_ARRAY {
+			rootNode = json.FindNode(v.clientData.JsonAst.Values[0], v.table)
+		} else {
+			panic("expected an object or an array")
+		}
+	}
+	columns := sqlj.ExtractIdentifiers(v.clientData.SqlAst, sqlj.Column)
+
+	if rootNode == nil {
+		panic("unable to locate JSON AST node for table")
+	}
+
 	// Construct a new cursor with the column mappings for the current table.
 	cursor := &jsonCursor{
 		jsonTable: v,
-		columns:   sqlj.ExtractIdentifiers(v.clientData.SqlAst, sqlj.Column),
+		current:   rootNode,
+		queryRoot: v.clientData.JsonAst,
+		columns:   columns,
 	}
 	return cursor, nil
 }
@@ -65,21 +99,26 @@ func (v *jsonTable) Destroy() error    { return nil }
 
 type jsonCursor struct {
 	*jsonTable
-	columns []string
+	current   *json.ASTNode
+	queryRoot *json.ASTNode
+	columns   []string
+	eof       bool
 }
 
 func (vc *jsonCursor) Column(c *sqlite3.SQLiteContext, col int) error {
 	// Retrieve the original column name.
-	columnName := util.UnescapeString(vc.columns[col])
+	columnName := vc.columns[col]
 
 	// Try and find the AST node corresponding to the column.
-	var searchNode *json.ASTNode = nil
-	if vc.clientData.JsonAst.Value == json.JSON_VALUE_OBJECT {
-		searchNode = vc.jsonTable.clientData.JsonAst
-	} else if vc.clientData.JsonAst.Value == json.JSON_VALUE_ARRAY {
-		searchNode = vc.jsonTable.clientData.JsonAst.Values[*vc.row]
+	rowNode := vc.current
+	var columnNode *json.ASTNode = nil
+	if rowNode.Value == json.JSON_VALUE_OBJECT {
+		columnNode = json.FindNode(rowNode, columnName)
+	} else if rowNode.Value == json.JSON_VALUE_ARRAY {
+		columnNode = json.FindNode(rowNode.Values[vc.y], columnName)
 	}
-	columnNode := json.FindNode(searchNode, columnName)
+
+	(*vc.result)[columnName] = columnNode
 
 	if columnNode == nil {
 		c.ResultNull()
@@ -108,19 +147,35 @@ func (vc *jsonCursor) Filter(idxNum int, idxStr string, vals []interface{}) erro
 }
 
 func (vc *jsonCursor) Next() error {
-	*vc.jsonTable.row++
+	// Clear our previous rows results.
+	*vc.result = make(map[string]*json.ASTNode)
+
+	// Object queries only execute a single row.
+	if vc.queryRoot.Value == json.JSON_VALUE_OBJECT {
+		vc.eof = true
+		return nil
+	}
+
+	// Array queries might be on nested arrays.
+	vc.jsonTable.y++
+	if vc.jsonTable.y >= len(vc.current.Values) {
+		vc.jsonTable.y = 0
+		vc.jsonTable.x++
+		if vc.jsonTable.x >= len(vc.queryRoot.Values) {
+			vc.eof = true
+			return nil
+		}
+		vc.current = json.FindNode(vc.queryRoot.Values[vc.jsonTable.x], vc.table)
+	}
 	return nil
 }
 
 func (vc *jsonCursor) EOF() bool {
-	if vc.clientData.JsonAst.Value == json.JSON_VALUE_OBJECT {
-		return *vc.jsonTable.row > 0
-	}
-	return *vc.jsonTable.row > len(vc.clientData.JsonAst.Values)-1
+	return vc.eof
 }
 
 func (vc *jsonCursor) Rowid() (int64, error) {
-	return int64(*vc.jsonTable.row), nil
+	return int64(vc.jsonTable.x), nil
 }
 
 func (vc *jsonCursor) Close() error {
@@ -134,9 +189,11 @@ func Exec(clientData *ClientData) []*json.ASTNode {
 
 	// Register our module and the hook to be invoked on each
 	// 'CREATE VIRTUAL TABLE ...' statement.
+	result := make(map[string]*json.ASTNode)
 	jsonModule := jsonModule{
 		clientData:       clientData,
 		createTableStmts: createTableStmts,
+		result:           &result,
 	}
 	sql.Register(Driver, &sqlite3.SQLiteDriver{
 		ConnectHook: func(conn *sqlite3.SQLiteConn) error {
@@ -156,7 +213,7 @@ func Exec(clientData *ClientData) []*json.ASTNode {
 	// initialize the associate jsonTable instance.
 	tables := sqlj.ExtractIdentifiers(clientData.SqlAst, sqlj.Table)
 	for i := 0; i < len(tables); i++ {
-		_, err = db.Exec(fmt.Sprintf("CREATE VIRTUAL TABLE %s USING sqjson", tables[i]))
+		_, err = db.Exec(fmt.Sprintf("CREATE VIRTUAL TABLE %[1]s USING sqjson", tables[i]))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -174,13 +231,7 @@ func Exec(clientData *ClientData) []*json.ASTNode {
 	for rows.Next() {
 		columns, _ := rows.Columns()
 		for i := 0; i < len(columns); i++ {
-			var columnNode *json.ASTNode = nil
-			if clientData.JsonAst.Value == json.JSON_VALUE_OBJECT {
-				columnNode = json.FindNode(clientData.JsonAst, columns[i])
-			} else if clientData.JsonAst.Value == json.JSON_VALUE_ARRAY {
-				columnNode = json.FindNode(clientData.JsonAst.Values[jsonModule.row], columns[i])
-			}
-
+			columnNode := (*jsonModule.result)[columns[i]]
 			if columnNode != nil {
 				nodes = append(nodes, columnNode)
 			}
