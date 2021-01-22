@@ -173,9 +173,7 @@ func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents *[]s
 			*idents = append(*idents, "*")
 		}
 	case *LiteralExpr:
-		if kind != Table {
-			*idents = append(*idents, expr.(*LiteralExpr).value)
-		}
+		break
 	case *IdentifierExpr:
 		value := expr.(*IdentifierExpr)
 		if value.kind == kind {

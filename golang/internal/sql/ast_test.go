@@ -14,7 +14,7 @@ func TestExtractIdentifiers_Columns(t *testing.T) {
 				whereClause: &BinaryExpr{
 					operator: EQ,
 					left:     &IdentifierExpr{value: "b"},
-					right:    &IdentifierExpr{value: "5"},
+					right:    &LiteralExpr{value: "5"},
 				},
 			},
 		},
@@ -25,7 +25,7 @@ func TestExtractIdentifiers_Columns(t *testing.T) {
 
 	// Assert.
 	expectedIdentifiers := []string{
-		"a", "b", "5",
+		"a", "b",
 	}
 
 	if len(identifiers) != len(expectedIdentifiers) {
