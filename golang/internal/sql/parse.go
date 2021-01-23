@@ -93,7 +93,7 @@ func (p *Parser) parseSelectStmt() SelectStmt {
 		p.next()
 		switch token {
 		case FROM:
-			stmt.tableList = p.parseTableList()
+			stmt.fromClause = p.parseTableList()
 		case WHERE:
 			stmt.whereClause = p.parseExpr(0)
 		case GROUP:
@@ -156,8 +156,8 @@ func (p *Parser) parseColumn() ResultColumn {
 }
 
 // table-list ::= table-or-subquery [, table-or-subquery] | join-clause
-func (p *Parser) parseTableList() TableList {
-	tableList := TableList{source: p.parseTableOrSubQuery()}
+func (p *Parser) parseTableList() TableExpr {
+	tableList := TableExpr{source: p.parseTableOrSubQuery()}
 	for {
 		switch p.token {
 		case COMMA, NATURAL, LEFT, RIGHT, FULL, OUTER, INNER, CROSS, JOIN:

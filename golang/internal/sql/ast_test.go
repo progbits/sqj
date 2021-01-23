@@ -65,7 +65,7 @@ func TestExtractIdentifiers_Tables(t *testing.T) {
 		resultColumn: []ResultColumn{
 			{expr: &StarExpr{}},
 		},
-		tableList: TableList{
+		fromClause: TableExpr{
 			source: &IdentifierExpr{kind: Table, value: "*"},
 		},
 	}

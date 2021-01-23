@@ -134,7 +134,7 @@ type JoinExpr struct {
 	joinArgs JoinArgs
 }
 
-type TableList struct {
+type TableExpr struct {
 	source interface{} // table or sub-select
 	joins  []JoinExpr
 }
@@ -157,7 +157,7 @@ type SelectStmt struct {
 	isDistinct bool
 
 	resultColumn  []ResultColumn
-	tableList     TableList
+	fromClause    TableExpr
 	whereClause   Expr
 	groupByClause []Expr
 	havingClause  Expr
@@ -235,11 +235,11 @@ func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents map[st
 
 	// Handle the case where our table list either an identifier or a sub-query.
 	// TODO: Handle TableList joins.
-	switch stmt.tableList.source.(type) {
+	switch stmt.fromClause.source.(type) {
 	case Expr:
-		extractIdentifierFromExpression(stmt.tableList.source.(Expr), kind, idents)
+		extractIdentifierFromExpression(stmt.fromClause.source.(Expr), kind, idents)
 	case SelectStmt:
-		selectStmt := stmt.tableList.source.(SelectStmt)
+		selectStmt := stmt.fromClause.source.(SelectStmt)
 		extractIdentifiersImpl(&selectStmt, kind, idents)
 	default:
 		panic("unexpected table list source")

@@ -32,7 +32,7 @@ func checkStatement(t *testing.T, actual, expected SelectStmt) {
 		checkExpression(t, actual.resultColumn[i].expr, expected.resultColumn[i].expr)
 	}
 
-	checkTableList(t, actual.tableList, expected.tableList)
+	checkTableList(t, actual.fromClause, expected.fromClause)
 	checkExpression(t, actual.whereClause, expected.whereClause)
 
 	if len(actual.groupByClause) != len(expected.groupByClause) {
@@ -171,7 +171,7 @@ func checkExpression(t *testing.T, actual, expected Expr) {
 // Table list helpers
 // ==================
 
-func checkTableList(t *testing.T, actual, expected TableList) {
+func checkTableList(t *testing.T, actual, expected TableExpr) {
 	if actual.source == nil && actual.source != expected.source {
 		t.Fatalf("unexpected nil source")
 	}
@@ -456,7 +456,7 @@ func TestParseInExpr(t *testing.T) {
 			expr: &ExistsExpr{
 				selectStmt: SelectStmt{
 					resultColumn: []ResultColumn{{expr: &IdentifierExpr{value: "a"}}},
-					tableList:    TableList{source: &IdentifierExpr{value: "b", kind: Table}},
+					fromClause:   TableExpr{source: &IdentifierExpr{value: "b", kind: Table}},
 					whereClause: &BinaryExpr{
 						operator: EQ,
 						left:     &IdentifierExpr{value: "a"},
@@ -481,7 +481,7 @@ func TestParseInverseInExpr(t *testing.T) {
 				inverse: true,
 				selectStmt: SelectStmt{
 					resultColumn: []ResultColumn{{expr: &IdentifierExpr{value: "a"}}},
-					tableList:    TableList{source: &IdentifierExpr{value: "b", kind: Table}},
+					fromClause:   TableExpr{source: &IdentifierExpr{value: "b", kind: Table}},
 					whereClause: &BinaryExpr{
 						operator: EQ,
 						left:     &IdentifierExpr{value: "a"},
@@ -584,11 +584,11 @@ func TestParseResultColumns(t *testing.T) {
 
 type FromTestCase struct {
 	statement string
-	expected  TableList
+	expected  TableExpr
 }
 
 var tableListTestCases = [...]FromTestCase{
-	{"SELECT a, b FROM a_table INNER JOIN b_table ON a_table.a == b_table.c;", TableList{
+	{"SELECT a, b FROM a_table INNER JOIN b_table ON a_table.a == b_table.c;", TableExpr{
 		source: &IdentifierExpr{value: "a_table", kind: Table},
 		joins: []JoinExpr{{
 			joinOp: JoinOperator{constraint: INNER},
@@ -602,7 +602,7 @@ var tableListTestCases = [...]FromTestCase{
 			},
 		}},
 	}},
-	{"SELECT * FROM a INNER JOIN b USING(c, d);", TableList{
+	{"SELECT * FROM a INNER JOIN b USING(c, d);", TableExpr{
 		source: &IdentifierExpr{value: "a", kind: Table},
 		joins: []JoinExpr{{
 			joinOp: JoinOperator{constraint: INNER},
@@ -612,7 +612,7 @@ var tableListTestCases = [...]FromTestCase{
 			},
 		}},
 	}},
-	{"SELECT * FROM a LEFT INNER JOIN b USING(c, d);", TableList{
+	{"SELECT * FROM a LEFT INNER JOIN b USING(c, d);", TableExpr{
 		source: &IdentifierExpr{value: "a", kind: Table},
 		joins: []JoinExpr{{
 			joinOp: JoinOperator{constraint: INNER, operator: LEFT},
@@ -636,7 +636,7 @@ var tableListTestCases = [...]FromTestCase{
 func TestParseTableList(t *testing.T) {
 	for _, testCase := range tableListTestCases {
 		stmt := parseStatement(testCase.statement)
-		checkTableList(t, stmt.tableList, testCase.expected)
+		checkTableList(t, stmt.fromClause, testCase.expected)
 	}
 }
 
@@ -815,10 +815,10 @@ type SubSelectTestCase struct {
 
 var subSelectTestCases = [...]SubSelectTestCase{
 	{"SELECT a FROM (SELECT b FROM c WHERE b == 5) AS d;", SelectStmt{
-		tableList: TableList{
+		fromClause: TableExpr{
 			source: SelectStmt{
 				resultColumn: []ResultColumn{{expr: &IdentifierExpr{value: "b"}}},
-				tableList:    TableList{source: &IdentifierExpr{value: "c"}},
+				fromClause:   TableExpr{source: &IdentifierExpr{value: "c"}},
 				whereClause: &BinaryExpr{
 					operator: EQ,
 					left:     &IdentifierExpr{value: "b"},
@@ -832,7 +832,7 @@ var subSelectTestCases = [...]SubSelectTestCase{
 func TestSubSelects(t *testing.T) {
 	for _, testCase := range subSelectTestCases {
 		stmt := parseStatement(testCase.statement)
-		if _, ok := stmt.tableList.source.(SelectStmt); !ok {
+		if _, ok := stmt.fromClause.source.(SelectStmt); !ok {
 			t.Fatalf("expected SELECT statement")
 		}
 	}
