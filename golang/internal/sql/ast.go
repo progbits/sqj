@@ -166,18 +166,22 @@ type SelectStmt struct {
 }
 
 // extractIdentifierFromExpression returns all identifiers present in an expression
-func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents *[]string) {
+func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents map[string]bool) {
 	switch expr.(type) {
 	case *StarExpr:
 		if kind != Table {
-			*idents = append(*idents, "*")
+			if found := idents["*"]; !found {
+				idents["*"] = true
+			}
 		}
 	case *LiteralExpr:
 		break
 	case *IdentifierExpr:
 		value := expr.(*IdentifierExpr)
 		if value.kind == kind {
-			*idents = append(*idents, expr.(*IdentifierExpr).value)
+			if found := idents[expr.(*IdentifierExpr).value]; !found {
+				idents[expr.(*IdentifierExpr).value] = true
+			}
 		}
 	case *UnaryExpr:
 		extractIdentifierFromExpression(expr.(*UnaryExpr).expr, kind, idents)
@@ -223,7 +227,7 @@ func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents *[]s
 	}
 }
 
-func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents *[]string) {
+func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents map[string]bool) {
 	// Extract identifiers from result columns.
 	for i := 0; i < len(stmt.resultColumn); i++ {
 		extractIdentifierFromExpression(stmt.resultColumn[i].expr, kind, idents)
@@ -264,7 +268,12 @@ func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents *[]str
 
 // ExtractIdentifiers returns all identifiers from a SELECT statement.
 func ExtractIdentifiers(stmt *SelectStmt, kind IdentifierKind) []string {
-	idents := make([]string, 0)
-	extractIdentifiersImpl(stmt, kind, &idents)
-	return idents
+	uniqueIdentifiers := make(map[string]bool, 0)
+	extractIdentifiersImpl(stmt, kind, uniqueIdentifiers)
+
+	identifiers := make([]string, 0)
+	for key, _ := range uniqueIdentifiers {
+		identifiers = append(identifiers, key)
+	}
+	return identifiers
 }

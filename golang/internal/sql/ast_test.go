@@ -1,48 +1,58 @@
 package sql
 
-import "testing"
+import (
+	"sort"
+	"testing"
+)
 
 func TestExtractIdentifiers_Columns(t *testing.T) {
 	// Arrange.
-
-	// SELECT a FROM (SELECT b FROM c WHERE b == 5) AS d;
-	stmt := SelectStmt{
-		tableList: TableList{
-			source: SelectStmt{
-				resultColumn: []ResultColumn{{expr: &IdentifierExpr{value: "b"}}},
-				tableList:    TableList{source: &IdentifierExpr{value: "c", kind: Table}},
-				whereClause: &BinaryExpr{
-					operator: EQ,
-					left:     &IdentifierExpr{value: "b"},
-					right:    &LiteralExpr{value: "5"},
-				},
-			},
+	type TestCase struct {
+		statement string
+		expected []string
+	}
+	cases := []TestCase{
+		{
+			"SELECT a FROM b;",
+			[]string{"a"},
+		},
+		{
+			"SELECT a, b, c FROM d WHERE a > 3 AND b < 2;",
+			[]string{"a", "b", "c"},
+		},
+		{
+			"SELECT a FROM b WHERE a < 2 AND c > 5 AND d IS NOT 5;",
+			[]string{"a", "c", "d"},
+		},
+		{
+			"SELECT a FROM (SELECT b FROM c);",
+			[]string{"a", "b"},
 		},
 	}
 
-	// Act.
-	identifiers := ExtractIdentifiers(&stmt, Column)
+	for _, test := range cases {
+		// Act
+		stmt := parseStatement(test.statement)
+		identifiers := ExtractIdentifiers(&stmt, Column)
+		sort.Strings(identifiers)
 
-	// Assert.
-	expectedIdentifiers := []string{
-		"a", "b",
-	}
-
-	if len(identifiers) != len(expectedIdentifiers) {
-		t.Error("unexpected number of identifiers")
-	}
-
-	for i := 0; i < len(identifiers); i++ {
-		found := false
-		for j := 0; j < len(expectedIdentifiers); j++ {
-			if identifiers[i] != expectedIdentifiers[j] {
-				found = true
-				break
-			}
+		// Assert.
+		if len(identifiers) != len(test.expected) {
+			t.Error("unexpected number of identifiers")
 		}
 
-		if !found {
-			t.Error("unexpected identifier")
+		for i := 0; i < len(identifiers); i++ {
+			found := false
+			for j := 0; j < len(test.expected); j++ {
+				if identifiers[i] == test.expected[j] {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Error("unexpected identifier")
+			}
 		}
 	}
 }
