@@ -339,7 +339,75 @@ func TestCmd_StdIn_SelectFromSubArray_DuplicateColumns(t *testing.T) {
 
 	for i, value := range splitResult {
 		if strings.Trim(value, "\n") != expected[i] {
-			t.Error("unexpected values")
+			t.Errorf("unexpected value %s", value)
+		}
+	}
+}
+
+func TestCmd_StdIn_JoinSubArrays(t *testing.T) {
+	// Arrange.
+	json := `
+	  {
+		"a": [
+			{"id": 1},
+			{"id": 2},
+			{"id": 3},
+			{"id": 4}
+		],
+		"b": [
+			{"value": 3},
+			{"value": 4},
+			{"value": 5},
+			{"value": 6}
+		]
+	  }
+	`
+
+	type TestCase struct {
+		statement string
+		expected  []string
+	}
+	cases := []TestCase{
+		{
+			"SELECT a.id, b.value FROM a, b;",
+			[]string{
+				"1", "3", "1", "4", "1", "5", "1", "6",
+				"2", "3", "2", "4", "2", "5", "2", "6",
+				"3", "3", "3", "4", "3", "5", "3", "6",
+				"4", "3", "4", "4", "4", "5", "4", "6",
+			},
+		},
+		/*		{
+				"SELECT a.id, b.value FROM a JOIN b ON a.id == b.value;",
+				[]string{
+					"3", "4", "3", "4",
+				},
+			},*/
+	}
+
+	for i, test := range cases {
+		vtable.Driver = fmt.Sprintf("TestCmd_StdIn_JoinSubArrays_%d", i)
+		ioIn = bytes.NewReader([]byte(json))
+		ioOut = bytes.NewBuffer(nil)
+		ioErr = bytes.NewBuffer(nil)
+
+		// Act.
+		os.Args = []string{"./sqj", test.statement, "-"}
+		main()
+
+		// Assert.
+		result := ioOut.(*bytes.Buffer).String()
+		result = strings.Trim(result, "\n")
+
+		splitResult := strings.Split(result, "\n")
+		if len(splitResult) != len(test.expected) {
+			t.Error("unexpected number of values")
+		}
+
+		for i, value := range splitResult {
+			if strings.Trim(value, "\n") != test.expected[i] {
+				t.Error("unexpected values")
+			}
 		}
 	}
 }

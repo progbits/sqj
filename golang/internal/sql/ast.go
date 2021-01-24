@@ -7,6 +7,27 @@ const (
 	Table
 )
 
+type JoinType int
+
+const (
+	Inner JoinType = iota
+	Left
+	LeftOuter
+	Right
+	RightOuter
+	Full
+	FullOuter
+	Union
+)
+
+// Empty table expression interface.
+type TableExpr interface {
+	isTableExpr()
+}
+
+func (t *SelectStmt) isTableExpr()     {}
+func (t *IdentifierExpr) isTableExpr() {}
+
 // Empty expression interface.
 type Expr interface {
 	isExpr()
@@ -101,7 +122,7 @@ type (
 
 	ExistsExpr struct {
 		inverse    bool
-		selectStmt SelectStmt
+		selectStmt *SelectStmt
 	}
 
 	CaseExpr struct {
@@ -112,31 +133,302 @@ type (
 	}
 )
 
+// eqExpr checks two expressions for equality.
+func eqExpr(a, b Expr) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	switch a.(type) {
+	case *StarExpr:
+		if _, ok := b.(*StarExpr); !ok {
+			return false
+		}
+		return true
+	case *LiteralExpr:
+		if _, ok := b.(*LiteralExpr); !ok {
+			return false
+		}
+		return a.(*LiteralExpr).value == b.(*LiteralExpr).value
+	case *IdentifierExpr:
+		if _, ok := b.(*IdentifierExpr); !ok {
+			return false
+		}
+
+		if a.(*IdentifierExpr).value != b.(*IdentifierExpr).value {
+			return false
+		}
+		return a.(*IdentifierExpr).kind == b.(*IdentifierExpr).kind
+	case *UnaryExpr:
+		if _, ok := b.(*UnaryExpr); !ok {
+			return false
+		}
+
+		if a.(*UnaryExpr).operator != b.(*UnaryExpr).operator {
+			return false
+		}
+		return eqExpr(a.(*UnaryExpr).expr, b.(*UnaryExpr).expr)
+	case *BinaryExpr:
+		if _, ok := b.(*BinaryExpr); !ok {
+			return false
+		}
+
+		if a.(*BinaryExpr).operator != b.(*BinaryExpr).operator {
+			return false
+		}
+
+		if !eqExpr(a.(*BinaryExpr).left, b.(*BinaryExpr).left) {
+			return false
+		}
+		return eqExpr(a.(*BinaryExpr).right, b.(*BinaryExpr).right)
+	case *FunctionCallExpr:
+		if _, ok := b.(*FunctionCallExpr); !ok {
+			return false
+		}
+
+		if a.(*FunctionCallExpr).function != b.(*FunctionCallExpr).function {
+			return false
+		}
+
+		if a.(*FunctionCallExpr).distinct != b.(*FunctionCallExpr).distinct {
+			return false
+		}
+
+		if len(a.(*FunctionCallExpr).operands) != len(b.(*FunctionCallExpr).operands) {
+			return false
+		}
+		for i := 0; i < len(a.(*FunctionCallExpr).operands); i++ {
+			if !eqExpr(a.(*FunctionCallExpr).operands[i], b.(*FunctionCallExpr).operands[i]) {
+				return false
+			}
+		}
+	case *CastExpr:
+		if _, ok := b.(*CastExpr); !ok {
+			return false
+		}
+
+		if a.(*CastExpr).typeName != b.(*CastExpr).typeName {
+			return false
+		}
+		return eqExpr(a.(*CastExpr).expr, b.(*CastExpr).expr)
+	case *CollateExpr:
+		if _, ok := b.(*CollateExpr); !ok {
+			return false
+		}
+
+		if a.(*CollateExpr).collationName != b.(*CollateExpr).collationName {
+			return false
+		}
+		return eqExpr(a.(*CollateExpr).expr, b.(*CollateExpr).expr)
+	case *StringMatchExpr:
+		if _, ok := b.(*StringMatchExpr); !ok {
+			return false
+		}
+
+		if a.(*StringMatchExpr).operator != b.(*StringMatchExpr).operator {
+			return false
+		}
+
+		if a.(*StringMatchExpr).inverse != b.(*StringMatchExpr).inverse {
+			return false
+		}
+
+		if !eqExpr(a.(*StringMatchExpr).left, b.(*StringMatchExpr).left) {
+			return false
+		}
+
+		if !eqExpr(a.(*StringMatchExpr).right, b.(*StringMatchExpr).right) {
+			return false
+		}
+		return eqExpr(a.(*StringMatchExpr).escapeExpr, b.(*StringMatchExpr).escapeExpr)
+	case *NullableExpr:
+		if _, ok := b.(*NullableExpr); !ok {
+			return false
+		}
+
+		if a.(*NullableExpr).operator != b.(*NullableExpr).operator {
+			return false
+		}
+		return eqExpr(a.(*NullableExpr).expr, b.(*NullableExpr).expr)
+	case *IsExpr:
+		if _, ok := b.(*IsExpr); !ok {
+			return false
+		}
+
+		if a.(*IsExpr).inverse != b.(*IsExpr).inverse {
+			return false
+		}
+
+		if !eqExpr(a.(*IsExpr).left, b.(*IsExpr).left) {
+			return false
+		}
+
+		return eqExpr(a.(*IsExpr).right, b.(*IsExpr).right)
+	case *BetweenExpr:
+		if _, ok := b.(*BetweenExpr); !ok {
+			return false
+		}
+
+		if a.(*BetweenExpr).inverse != b.(*BetweenExpr).inverse {
+			return false
+		}
+
+		if !eqExpr(a.(*BetweenExpr).expr, b.(*BetweenExpr).expr) {
+			return false
+		}
+
+		if !eqExpr(a.(*BetweenExpr).left, b.(*BetweenExpr).left) {
+			return false
+		}
+		return eqExpr(a.(*BetweenExpr).right, b.(*BetweenExpr).right)
+	case *InExpr:
+		if _, ok := b.(*InExpr); !ok {
+			return false
+		}
+
+		if a.(*InExpr).inverse != b.(*InExpr).inverse {
+			return false
+		}
+		return eqExpr(a.(*InExpr).expr, b.(*InExpr).expr)
+	case *ExistsExpr:
+		if _, ok := b.(*ExistsExpr); !ok {
+			return false
+		}
+
+		if a.(*ExistsExpr).inverse != b.(*ExistsExpr).inverse {
+			return false
+		}
+		return eqSelectStmt(a.(*ExistsExpr).selectStmt, b.(*ExistsExpr).selectStmt)
+	case *CaseExpr:
+		if _, ok := b.(*CaseExpr); !ok {
+			return false
+		}
+
+		if !eqExpr(a.(*CaseExpr).expr, b.(*CaseExpr).expr) {
+			return false
+		}
+
+		if len(a.(*CaseExpr).when) != len(b.(*CaseExpr).when) {
+			return false
+		}
+		for i := 0; i < len(a.(*CaseExpr).when); i++ {
+			if !eqExpr(a.(*CaseExpr).when[i], b.(*CaseExpr).when[i]) {
+				return false
+			}
+		}
+
+		if len(a.(*CaseExpr).then) != len(b.(*CaseExpr).then) {
+			return false
+		}
+		for i := 0; i < len(a.(*CaseExpr).then); i++ {
+			if !eqExpr(a.(*CaseExpr).then[i], b.(*CaseExpr).then[i]) {
+				return false
+			}
+		}
+		return eqExpr(a.(*CaseExpr).elseExpr, b.(*CaseExpr).elseExpr)
+	case nil:
+		if b != nil {
+			return false
+		}
+	}
+	return false
+}
+
 type ResultColumn struct {
 	alias string
 	expr  Expr
 }
 
-type JoinOperator struct {
-	natural    bool
-	operator   Token
-	constraint Token
+// eqResultColumn checks two ResultColumns for equality
+func eqResultColumn(a, b ResultColumn) bool {
+	if a.alias != b.alias {
+		return false
+	}
+	return eqExpr(a.expr, b.expr)
 }
 
-type JoinArgs struct {
-	onExpr Expr
-	using  []Expr // IdentifierExpr
+type JoinedTable struct {
+	source TableExpr
+	joins  []Join
 }
 
-type JoinExpr struct {
-	joinOp   JoinOperator
-	source   interface{} // table or sub-select
-	joinArgs JoinArgs
+// eqTableExpr checks two TableExprs for equality.
+func eqTableExpr(a, b TableExpr) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	switch a.(type) {
+	case *SelectStmt:
+		if _, ok := b.(*SelectStmt); !ok {
+			return false
+		}
+		return eqSelectStmt(a.(*SelectStmt), b.(*SelectStmt))
+	case *IdentifierExpr:
+		if _, ok := b.(*IdentifierExpr); !ok {
+			return false
+		}
+		return eqExpr(a.(*IdentifierExpr), b.(*IdentifierExpr))
+
+	default:
+		return false
+	}
 }
 
-type TableExpr struct {
-	source interface{} // table or sub-select
-	joins  []JoinExpr
+// eqJoinedTable checks two JoinedTables for equality.
+func eqJoinedTable(a, b JoinedTable) bool {
+	if !eqTableExpr(a.source, b.source) {
+		return false
+	}
+
+	if len(a.joins) != len(b.joins) {
+		return false
+	}
+
+	for i := 0; i < len(a.joins); i++ {
+		if !eqJoin(a.joins[i], b.joins[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+type Join struct {
+	source       JoinedTable
+	natural      bool
+	joinType     JoinType
+	condition    Expr
+	namedColumns []Expr
+}
+
+// eqJoin checks two Joins for equality.
+func eqJoin(a, b Join) bool {
+	if !eqJoinedTable(a.source, b.source) {
+		return false
+	}
+
+	if a.natural != b.natural {
+		return false
+	}
+
+	if a.joinType != b.joinType {
+		return false
+	}
+
+	if !eqExpr(a.condition, b.condition) {
+		return false
+	}
+
+	if len(a.namedColumns) != len(b.namedColumns) {
+		return false
+	}
+	for i := 0; i < len(a.namedColumns); i++ {
+		if !eqExpr(a.namedColumns[i], b.namedColumns[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 type OrderByExpr struct {
@@ -147,9 +439,42 @@ type OrderByExpr struct {
 	nullsFirst    bool
 }
 
+// eqOrderByExpr checks two OrderByExpr for equality.
+func eqOrderByExpr(a, b OrderByExpr) bool {
+	if !eqExpr(a.expr, b.expr) {
+		return false
+	}
+
+	if a.collate != b.collate {
+		return false
+	}
+
+	if a.collationName != b.collationName {
+		return false
+	}
+
+	if a.sortOrder != b.sortOrder {
+		return false
+	}
+
+	if a.nullsFirst != b.nullsFirst {
+		return false
+	}
+
+	return true
+}
+
 type LimitExpr struct {
 	count Expr
 	skip  Expr
+}
+
+// eqLimitExpr checks two OrderByExpr for equality.
+func eqLimitExpr(a, b LimitExpr) bool {
+	if !eqExpr(a.count, b.count) {
+		return false
+	}
+	return eqExpr(a.skip, b.skip)
 }
 
 type SelectStmt struct {
@@ -157,12 +482,77 @@ type SelectStmt struct {
 	isDistinct bool
 
 	resultColumn  []ResultColumn
-	fromClause    TableExpr
+	fromClause    []JoinedTable
 	whereClause   Expr
 	groupByClause []Expr
 	havingClause  Expr
 	orderByClause []OrderByExpr
 	limitClause   LimitExpr
+}
+
+// eqSelectStmt checks two SelectStmts for equality.
+func eqSelectStmt(a, b *SelectStmt) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil && a != b {
+		return false
+	}
+
+	if a.isAll != b.isAll {
+		return false
+	}
+
+	if a.isDistinct != b.isDistinct {
+		return false
+	}
+
+	if len(a.resultColumn) != len(b.resultColumn) {
+		return false
+	}
+	for i := 0; i < len(a.resultColumn); i++ {
+		if !eqResultColumn(a.resultColumn[i], b.resultColumn[i]) {
+			return false
+		}
+	}
+
+	if len(a.fromClause) != len(b.fromClause) {
+		return false
+	}
+	for i := 0; i < len(a.fromClause); i++ {
+		if !eqJoinedTable(a.fromClause[i], b.fromClause[i]) {
+			return false
+		}
+	}
+
+	if !eqExpr(a.whereClause, b.whereClause) {
+		return false
+	}
+
+	if len(a.groupByClause) != len(b.groupByClause) {
+		return false
+	}
+	for i := 0; i < len(a.groupByClause); i++ {
+		if !eqExpr(a.groupByClause[i], b.groupByClause[i]) {
+			return false
+		}
+	}
+
+	if !eqExpr(a.havingClause, b.havingClause) {
+		return false
+	}
+
+	if len(a.orderByClause) != len(b.orderByClause) {
+		return false
+	}
+	for i := 0; i < len(a.orderByClause); i++ {
+		if !eqOrderByExpr(a.orderByClause[i], b.orderByClause[i]) {
+			return false
+		}
+	}
+
+	return eqLimitExpr(a.limitClause, b.limitClause)
 }
 
 // extractIdentifierFromExpression returns all identifiers present in an expression
@@ -213,7 +603,7 @@ func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents map[
 	case *InExpr:
 		extractIdentifierFromExpression(expr.(*InExpr).expr, kind, idents)
 	case *ExistsExpr:
-		extractIdentifiersImpl(&expr.(*ExistsExpr).selectStmt, kind, idents)
+		extractIdentifiersImpl(expr.(*ExistsExpr).selectStmt, kind, idents)
 	case *CaseExpr:
 		caseExpr := expr.(*CaseExpr)
 		extractIdentifierFromExpression(caseExpr.expr, kind, idents)
@@ -235,14 +625,34 @@ func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents map[st
 
 	// Handle the case where our table list either an identifier or a sub-query.
 	// TODO: Handle TableList joins.
-	switch stmt.fromClause.source.(type) {
-	case Expr:
-		extractIdentifierFromExpression(stmt.fromClause.source.(Expr), kind, idents)
-	case SelectStmt:
-		selectStmt := stmt.fromClause.source.(SelectStmt)
-		extractIdentifiersImpl(&selectStmt, kind, idents)
-	default:
-		panic("unexpected table list source")
+	for i := 0; i < len(stmt.fromClause); i++ {
+		switch stmt.fromClause[i].source.(type) {
+		case Expr:
+			extractIdentifierFromExpression(stmt.fromClause[i].source.(Expr), kind, idents)
+		case *SelectStmt:
+			selectStmt := stmt.fromClause[i].source.(*SelectStmt)
+			extractIdentifiersImpl(selectStmt, kind, idents)
+		default:
+			panic("unexpected table list source")
+		}
+
+		for j := 0; j < len(stmt.fromClause[i].joins); j++ {
+			switch stmt.fromClause[i].source.(type) {
+			case Expr:
+				extractIdentifierFromExpression(stmt.fromClause[i].source.(Expr), kind, idents)
+			case *SelectStmt:
+				selectStmt := stmt.fromClause[i].source.(*SelectStmt)
+				extractIdentifiersImpl(selectStmt, kind, idents)
+			default:
+				panic("unexpected table list source")
+			}
+			extractIdentifierFromExpression(stmt.fromClause[i].joins[j].condition, kind, idents)
+
+			for k := 0; k < len(stmt.fromClause[i].joins[j].namedColumns); k++ {
+				columnExpr := stmt.fromClause[i].joins[j].namedColumns[k]
+				extractIdentifierFromExpression(columnExpr, kind, idents)
+			}
+		}
 	}
 
 	// Handle WHERE clause expressions.

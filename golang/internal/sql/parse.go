@@ -156,15 +156,97 @@ func (p *Parser) parseColumn() ResultColumn {
 }
 
 // table-list ::= table-or-subquery [, table-or-subquery] | join-clause
-func (p *Parser) parseTableList() TableExpr {
-	tableList := TableExpr{source: p.parseTableOrSubQuery()}
+//
+// join-clause ::= table_or_subquery [ join-operator table-or-subquery join-constraint ]
+// join-operator ::= , | [NATURAL] [LEFT | RIGHT | FULLl] [OUTER | INNER | CROSS] JOIN
+// join-args ::= [ON expr] [USING ( column-name [, column-name]* )]
+func (p *Parser) parseTableList() []JoinedTable {
+	tableList := make([]JoinedTable, 0)
+	tableExpr := p.parseTableExpr()
+	tableList = append(tableList, tableExpr)
 	for {
 		switch p.token {
-		case COMMA, NATURAL, LEFT, RIGHT, FULL, OUTER, INNER, CROSS, JOIN:
-			joinOp := p.parseJoinOp()
-			joinTable := p.parseTableOrSubQuery()
-			joinArgs := p.parseJoinArgs()
-			tableList.joins = append(tableList.joins, JoinExpr{joinOp: joinOp, source: joinTable, joinArgs: joinArgs})
+		case COMMA:
+			p.next()
+			tableExpr = p.parseTableExpr()
+			tableList = append(tableList, tableExpr)
+			continue
+		case NATURAL, INNER, LEFT, RIGHT, FULL, UNION, JOIN:
+			natural := p.token == NATURAL
+			var joinType JoinType
+			switch p.token {
+			case JOIN:
+				p.next()
+			case INNER:
+				joinType = Inner
+				p.next()
+				p.next()
+			case LEFT:
+				p.next()
+				if p.token == OUTER {
+					joinType = LeftOuter
+					p.next()
+				} else {
+					joinType = Left
+				}
+				p.next()
+			case RIGHT:
+				p.next()
+				if p.token == OUTER {
+					joinType = RightOuter
+					p.next()
+				} else {
+					joinType = Right
+				}
+				p.next()
+			case FULL:
+				p.next()
+				if p.token == OUTER {
+					joinType = FullOuter
+					p.next()
+				} else {
+					joinType = Full
+				}
+				p.next()
+			}
+
+			source := p.parseTableExpr()
+
+			if p.token == ON {
+				p.next()
+				conditions := p.parseExpr(0)
+				join := Join{
+					source:    source,
+					natural:   natural,
+					joinType:  joinType,
+					condition: conditions,
+				}
+				tableList[len(tableList)-1].joins = append(tableList[len(tableList)-1].joins, join)
+				continue
+			} else if p.token == USING {
+				p.next()
+				if p.token != LP {
+					panic("expected (")
+				}
+				p.next()
+				columns := make([]Expr, 0)
+				for {
+					columns = append(columns, p.parseExpr(0))
+					if p.token != COMMA {
+						break
+					}
+					p.next()
+				}
+				join := Join{
+					source:       source,
+					natural:      natural,
+					joinType:     joinType,
+					namedColumns: columns,
+				}
+				tableList[len(tableList)-1].joins = append(tableList[len(tableList)-1].joins, join)
+			} else {
+				panic("expected ON | USING")
+			}
 		default:
 			return tableList
 		}
@@ -176,11 +258,11 @@ func (p *Parser) parseTableList() TableExpr {
 //                       [schema-name '.' ] table-function-name ( expr [, expr]* ) [AS alias]
 //						 | ( (table-or-subquery [, table-or-subquery]*) | join-clause )
 //						 | (select-stmt) [AS alias]
-func (p *Parser) parseTableOrSubQuery() interface{} {
+func (p *Parser) parseTableExpr() JoinedTable {
 	token, value := p.token, p.value
 	switch p.next(); token {
 	case IDENTIFIER:
-		return &IdentifierExpr{value: value, kind: Table}
+		return JoinedTable{source: &IdentifierExpr{value: value, kind: Table}}
 	case LP:
 		p.assertAndConsumeToken(SELECT)
 		stmt := p.parseSelectStmt()
@@ -188,60 +270,10 @@ func (p *Parser) parseTableOrSubQuery() interface{} {
 		if p.token == RP {
 			p.next()
 		}
-		return stmt
+		return JoinedTable{source: &stmt}
 	default:
 		panic(fmt.Sprintf("unexpected token: %s", p.token))
 	}
-}
-
-// join-op ::= , | [NATURAL] [LEFT | RIGHT | FULLl] [OUTER | INNER | CROSS] JOIN
-func (p *Parser) parseJoinOp() JoinOperator {
-	if p.token == COMMA {
-		return JoinOperator{}
-	}
-
-	expr := JoinOperator{}
-	for p.token != JOIN {
-		switch p.token {
-		case NATURAL:
-			expr.natural = true
-		case LEFT, RIGHT, FULL:
-			expr.operator = p.token
-		case OUTER, INNER, CROSS:
-			expr.constraint = p.token
-		}
-		p.next()
-	}
-	p.next()
-
-	return expr
-}
-
-// join-args ::= [ON expr] [USING ( column-name [, column-name]* )]
-func (p *Parser) parseJoinArgs() JoinArgs {
-	joinArgs := JoinArgs{}
-
-	if p.token == ON {
-		p.next()
-		joinArgs.onExpr = p.parseExpr(0)
-	}
-
-	if p.token != USING {
-		return joinArgs
-	}
-	p.next()
-	p.assertAndConsumeToken(LP)
-
-	joinArgs.using = append(joinArgs.using, &IdentifierExpr{value: p.value})
-	p.next()
-	for p.token == COMMA {
-		p.next()
-		joinArgs.using = append(joinArgs.using, &IdentifierExpr{value: p.value})
-		p.next()
-	}
-	p.assertAndConsumeToken(RP)
-
-	return joinArgs
 }
 
 // ordering-term ::= expr [COLLATE collation-name] [ ASC | DESC ]
@@ -336,7 +368,7 @@ func (p *Parser) parsePrefix() Expr {
 		p.assertAndConsumeToken(LP)
 		p.assertAndConsumeToken(SELECT)
 		selectStmt := p.parseSelectStmt()
-		return &ExistsExpr{selectStmt: selectStmt}
+		return &ExistsExpr{selectStmt: &selectStmt}
 	case CASE:
 		caseExpr := CaseExpr{}
 		if p.token != WHEN {
