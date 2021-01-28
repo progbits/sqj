@@ -4,15 +4,13 @@ TARGET_NAME=sqj
 
 all: test build
 build:
-	go build -tags=sqlite_vtable -o $(TARGET_NAME) -v ./cmd/main
+	go build -tags=sqlite_vtable -o bin/$(TARGET_NAME) -v ./cmd/main
 test:
 	go test -tags=sqlite_vtable -v ./...
 fmt:
 	go fmt ./...
 clean:
 	go clean
-	rm -f $(TARGET_NAME)
-	rm -f $(BINARY_UNIX)
+	@rm -r bin
 run: build
 	./$(TARGET_NAME)
-
