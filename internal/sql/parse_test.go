@@ -100,7 +100,6 @@ func TestParseExpr(t *testing.T) {
 		{"SELECT a == b;", []Expr{&BinaryExpr{operator: EQ, left: &IdentifierExpr{value: "a"}, right: &IdentifierExpr{value: "b"}}}},
 		{"SELECT a != b;", []Expr{&BinaryExpr{operator: NE, left: &IdentifierExpr{value: "a"}, right: &IdentifierExpr{value: "b"}}}},
 		{"SELECT a <> b;", []Expr{&BinaryExpr{operator: NE, left: &IdentifierExpr{value: "a"}, right: &IdentifierExpr{value: "b"}}}},
-		//{"SELECT a IS b;", []Expr{}{&BinaryExpr{operator: IS, left: IdentifierExpr{value: "a"}, right: IdentifierExpr{value: "b"}}}},
 		{"SELECT a NOT b;", []Expr{&BinaryExpr{operator: NOT, left: &IdentifierExpr{value: "a"}, right: &IdentifierExpr{value: "b"}}}},
 		{"SELECT a IN b;", []Expr{&BinaryExpr{operator: IN, left: &IdentifierExpr{value: "a"}, right: &IdentifierExpr{value: "b"}}}},
 		//	{"SELECT a LIKE b;", []Expr{&BinaryExpr{operator: LIKE, left: IdentifierExpr{value: "a"}, right: IdentifierExpr{value: "b"}}}},
