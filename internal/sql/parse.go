@@ -2,6 +2,7 @@ package sql
 
 import (
 	"fmt"
+	"strings"
 )
 
 func precedence(token Token) int {
@@ -338,6 +339,18 @@ func (p *Parser) parsePrefix() Expr {
 				identifier += p.value
 				p.next()
 			}
+		} else if p.token == LP {
+			functionCallExpr := &FunctionCallExpr{function: strings.ToLower(value)}
+			p.next()
+
+			// Horrible...This needs to be a more generic method for parsing a
+			// comma separated list of expressions.
+			operands := p.parseResultColumn()
+			for _, operand := range operands {
+				functionCallExpr.operands = append(functionCallExpr.operands, operand.expr)
+			}
+			p.assertAndConsumeToken(RP)
+			return functionCallExpr
 		}
 		return &IdentifierExpr{value: identifier}
 	case NUMERIC_LITERAL, STRING_LITERAL:

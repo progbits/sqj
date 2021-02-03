@@ -108,7 +108,43 @@ func TestParseExpr(t *testing.T) {
 		//	{"SELECT a REGEXP b;", []Expr{&BinaryExpr{operator: REGEXP, left: IdentifierExpr{value: "a"}, right: IdentifierExpr{value: "b"}}}},
 		{"SELECT a AND b;", []Expr{&BinaryExpr{operator: AND, left: &IdentifierExpr{value: "a"}, right: &IdentifierExpr{value: "b"}}}},
 		{"SELECT a OR b;", []Expr{&BinaryExpr{operator: OR, left: &IdentifierExpr{value: "a"}, right: &IdentifierExpr{value: "b"}}}},
-		// TODO: function call expression
+		// function call expression
+		{"SELECT min(a), MAX(a + b);", []Expr{
+			&FunctionCallExpr{
+				function: "min",
+				operands: []Expr{
+					&IdentifierExpr{value: "a"},
+				},
+			},
+			&FunctionCallExpr{
+				function: "max",
+				operands: []Expr{
+					&BinaryExpr{
+						operator: PLUS,
+						left:     &IdentifierExpr{value: "a"},
+						right:    &IdentifierExpr{value: "b"},
+					},
+				},
+			},
+		}},
+		{"SELECT coalesce(a, a + b, (5 - 3));", []Expr{
+			&FunctionCallExpr{
+				function: "coalesce",
+				operands: []Expr{
+					&IdentifierExpr{value: "a"},
+					&BinaryExpr{
+						operator: PLUS,
+						left:     &IdentifierExpr{value: "a"},
+						right:    &IdentifierExpr{value: "b"},
+					},
+					&BinaryExpr{
+						operator: MINUS,
+						left:     &LiteralExpr{value: "5"},
+						right:    &LiteralExpr{value: "3"},
+					},
+				},
+			},
+		}},
 		// parenthesised expressions
 		{"SELECT (a)", []Expr{&IdentifierExpr{value: "a"}}},
 		{"SELECT (((((a)))))", []Expr{&IdentifierExpr{value: "a"}}},
@@ -223,7 +259,7 @@ func TestParseExpr(t *testing.T) {
 		}
 		for i := 0; i < len(stmt.resultColumn); i++ {
 			if !eqExpr(stmt.resultColumn[i].expr, _case.expected[i]) {
-				t.Error("unexpected expression")
+				t.Errorf("unexpected expression parsing: %s", _case.statement)
 			}
 		}
 	}

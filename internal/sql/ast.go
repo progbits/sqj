@@ -202,6 +202,7 @@ func eqExpr(a, b Expr) bool {
 				return false
 			}
 		}
+		return true
 	case *CastExpr:
 		if _, ok := b.(*CastExpr); !ok {
 			return false
