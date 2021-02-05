@@ -619,6 +619,27 @@ func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents map[
 	}
 }
 
+func extractIndentifiersFromJoinedTable(joinedTable *JoinedTable, kind IdentifierKind, idents map[string]bool) {
+	switch joinedTable.source.(type) {
+	case Expr:
+		extractIdentifierFromExpression(joinedTable.source.(Expr), kind, idents)
+	case *SelectStmt:
+		selectStmt := joinedTable.source.(*SelectStmt)
+		extractIdentifiersImpl(selectStmt, kind, idents)
+	default:
+		panic("unexpected table list source")
+	}
+
+	for i := 0; i < len(joinedTable.joins); i++ {
+		extractIndentifiersFromJoinedTable(&joinedTable.joins[i].source, kind, idents)
+		extractIdentifierFromExpression(joinedTable.joins[i].condition, kind, idents)
+		for k := 0; k < len(joinedTable.joins[i].namedColumns); k++ {
+			columnExpr := joinedTable.joins[i].namedColumns[k]
+			extractIdentifierFromExpression(columnExpr, kind, idents)
+		}
+	}
+}
+
 func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents map[string]bool) {
 	// Extract identifiers from result columns.
 	for i := 0; i < len(stmt.resultColumn); i++ {
@@ -626,35 +647,8 @@ func extractIdentifiersImpl(stmt *SelectStmt, kind IdentifierKind, idents map[st
 	}
 
 	// Handle the case where our table list either an identifier or a sub-query.
-	// TODO: Handle TableList joins.
 	for i := 0; i < len(stmt.fromClause); i++ {
-		switch stmt.fromClause[i].source.(type) {
-		case Expr:
-			extractIdentifierFromExpression(stmt.fromClause[i].source.(Expr), kind, idents)
-		case *SelectStmt:
-			selectStmt := stmt.fromClause[i].source.(*SelectStmt)
-			extractIdentifiersImpl(selectStmt, kind, idents)
-		default:
-			panic("unexpected table list source")
-		}
-
-		for j := 0; j < len(stmt.fromClause[i].joins); j++ {
-			switch stmt.fromClause[i].source.(type) {
-			case Expr:
-				extractIdentifierFromExpression(stmt.fromClause[i].source.(Expr), kind, idents)
-			case *SelectStmt:
-				selectStmt := stmt.fromClause[i].source.(*SelectStmt)
-				extractIdentifiersImpl(selectStmt, kind, idents)
-			default:
-				panic("unexpected table list source")
-			}
-			extractIdentifierFromExpression(stmt.fromClause[i].joins[j].condition, kind, idents)
-
-			for k := 0; k < len(stmt.fromClause[i].joins[j].namedColumns); k++ {
-				columnExpr := stmt.fromClause[i].joins[j].namedColumns[k]
-				extractIdentifierFromExpression(columnExpr, kind, idents)
-			}
-		}
+		extractIndentifiersFromJoinedTable(&stmt.fromClause[i], kind, idents)
 	}
 
 	// Handle WHERE clause expressions.

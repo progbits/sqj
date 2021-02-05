@@ -36,6 +36,14 @@ func TestExtractIdentifiers_Columns(t *testing.T) {
 			"SELECT * FROM a INNER JOIN b USING(c, d);",
 			[]string{"*", "c", "d"},
 		},
+		{
+			"SELECT MIN(x.id), x.customer, x.total " +
+				"FROM [] AS x " +
+				"JOIN (SELECT p.customer, MAX(total) AS max_total FROM [] AS p GROUP BY p.customer) AS y " +
+				"ON y.customer = x.customer AND y.max_total = x.total " +
+				"GROUP BY x.customer, x.total;",
+			[]string{"x.id", "x.customer", "x.total", "p.customer", "total", "y.customer", "y.max_total"},
+		},
 	}
 
 	for _, test := range cases {
