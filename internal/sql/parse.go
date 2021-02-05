@@ -281,6 +281,15 @@ func (p *Parser) parseTableExpr() JoinedTable {
 		if p.token == RP {
 			p.next()
 		}
+
+		// Consume [[AS] alias]
+		if p.token == AS {
+			p.next()
+			p.assertAndConsumeToken(IDENTIFIER)
+		} else if p.token == IDENTIFIER {
+			p.next()
+		}
+
 		return JoinedTable{source: &stmt}
 	default:
 		panic(fmt.Sprintf("unexpected token: %s", p.token))
