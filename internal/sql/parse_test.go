@@ -405,6 +405,11 @@ func TestParseTableList(t *testing.T) {
 			{source: &IdentifierExpr{value: "b", kind: Table}},
 			{source: &IdentifierExpr{value: "c", kind: Table}},
 		}},
+		{"SELECT * FROM a, b AS x, c;", []JoinedTable{
+			{source: &IdentifierExpr{value: "a", kind: Table}},
+			{source: &IdentifierExpr{value: "b", kind: Table, alias: "x"}},
+			{source: &IdentifierExpr{value: "c", kind: Table}},
+		}},
 		{"SELECT * FROM a JOIN b ON a.x == b.y;", []JoinedTable{
 			{
 				source: &IdentifierExpr{value: "a", kind: Table},

@@ -59,6 +59,7 @@ type (
 
 	IdentifierExpr struct {
 		value string
+		alias string
 		kind  IdentifierKind
 	}
 

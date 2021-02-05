@@ -263,7 +263,17 @@ func (p *Parser) parseTableExpr() JoinedTable {
 	token, value := p.token, p.value
 	switch p.next(); token {
 	case IDENTIFIER:
-		return JoinedTable{source: &IdentifierExpr{value: value, kind: Table}}
+		switch p.token {
+		case AS:
+			p.next()
+			fallthrough
+		case IDENTIFIER:
+			joinedTable := JoinedTable{source: &IdentifierExpr{value: value, kind: Table, alias: p.value}}
+			p.next()
+			return joinedTable
+		default:
+			return JoinedTable{source: &IdentifierExpr{value: value, kind: Table}}
+		}
 	case LP:
 		p.assertAndConsumeToken(SELECT)
 		stmt := p.parseSelectStmt()
