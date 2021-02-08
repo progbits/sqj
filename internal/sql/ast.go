@@ -1,5 +1,7 @@
 package sql
 
+import "sort"
+
 type IdentifierKind int
 
 const (
@@ -681,5 +683,7 @@ func ExtractIdentifiers(stmt *SelectStmt, kind IdentifierKind) []string {
 	for key, _ := range uniqueIdentifiers {
 		identifiers = append(identifiers, key)
 	}
+
+	sort.Strings(identifiers)
 	return identifiers
 }
