@@ -21,9 +21,15 @@ func TestParseExpr(t *testing.T) {
 
 	var cases = [...]TestCase{
 		// literal values
-		{"SELECT 5;", []Expr{&LiteralExpr{value: "5"}}},
-		//{"SELECT \"hello, world\";", []Expr{}{LiteralExpr{value: "hello, world"}}},
 		{"SELECT a;", []Expr{&IdentifierExpr{value: "a"}}},
+		{"SELECT 5;", []Expr{&LiteralExpr{value: "5"}}},
+		{"SELECT a, 5, b, foo;", []Expr{
+			&IdentifierExpr{value: "a"},
+			&LiteralExpr{value: "5"},
+			&IdentifierExpr{value: "b"},
+			&IdentifierExpr{value: "foo"},
+		}},
+		//{"SELECT 'hello, world';", []Expr{&LiteralExpr{value: "hello, world"}}},
 		{"SELECT α, γ, δ, ϵ, ζ, θ, μ, ψ;", []Expr{
 			&IdentifierExpr{value: "α"},
 			&IdentifierExpr{value: "γ"},
@@ -36,6 +42,10 @@ func TestParseExpr(t *testing.T) {
 		}},
 		// unary operators
 		{"SELECT -a;", []Expr{&UnaryExpr{operator: MINUS, expr: &IdentifierExpr{value: "a"}}}},
+		{"SELECT -a, +foo;", []Expr{
+			&UnaryExpr{operator: MINUS, expr: &IdentifierExpr{value: "a"}},
+			&UnaryExpr{operator: PLUS, expr: &IdentifierExpr{value: "foo"}},
+		}},
 		{"SELECT -(a + b > 2);", []Expr{
 			&UnaryExpr{
 				operator: MINUS,
