@@ -6,6 +6,7 @@ import (
 	"github.com/progbits/sqjson/internal/json"
 	sqlj "github.com/progbits/sqjson/internal/sql"
 	"log"
+	"strconv"
 	"strings"
 
 	"github.com/mattn/go-sqlite3"
@@ -24,7 +25,8 @@ type ClientData struct {
 type jsonModule struct {
 	clientData      *ClientData
 	createTableStmt *string
-	result          *map[string]*json.ASTNode
+	table           *string
+	columns         *[]string
 }
 
 func (m *jsonModule) Create(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab, error) {
@@ -39,8 +41,8 @@ func (m *jsonModule) Create(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab,
 
 	table := &jsonTable{
 		clientData: m.clientData,
-		table:      args[2],
-		result:     m.result,
+		table:      *m.table,
+		columns:    *m.columns,
 	}
 
 	return table, nil
@@ -55,9 +57,9 @@ func (m *jsonModule) DestroyModule() {}
 type jsonTable struct {
 	clientData *ClientData
 	table      string
+	columns    []string
 	x          int
 	y          int
-	result     *map[string]*json.ASTNode
 }
 
 func (v *jsonTable) Open() (sqlite3.VTabCursor, error) {
@@ -102,24 +104,13 @@ func (v *jsonTable) Open() (sqlite3.VTabCursor, error) {
 		jsonTable: v,
 		current:   currentNode,
 		queryRoot: queryRootNode,
-		columns:   tableColumns,
+		columns:   v.columns,
 	}
 	return cursor, nil
 }
 
 func (v *jsonTable) BestIndex(csts []sqlite3.InfoConstraint, ob []sqlite3.InfoOrderBy) (*sqlite3.IndexResult, error) {
-	used := make([]bool, len(csts))
-	for c, cst := range csts {
-		if cst.Usable && cst.Op == sqlite3.OpEQ {
-			used[c] = true
-		}
-	}
-
-	return &sqlite3.IndexResult{
-		IdxNum: 0,
-		IdxStr: "default",
-		Used:   used,
-	}, nil
+	return &sqlite3.IndexResult{Used: make([]bool, len(csts))}, nil
 }
 
 func (v *jsonTable) Disconnect() error { return nil }
@@ -142,10 +133,20 @@ func (vc *jsonCursor) Column(c *sqlite3.SQLiteContext, col int) error {
 	rowNode := vc.current
 	var columnNode *json.ASTNode = nil
 	if len(splitColumnName) > 1 {
-		if rowNode.Value == json.JSON_VALUE_OBJECT {
-			columnNode = json.FindNode(rowNode, splitColumnName[0])
-		} else if rowNode.Value == json.JSON_VALUE_ARRAY {
-			columnNode = json.FindNode(rowNode.Values[vc.y], splitColumnName[0])
+		// Column could be object key or aliased table.
+		if splitColumnName[0] != vc.table {
+			columnName = splitColumnName[len(splitColumnName)-1]
+			if rowNode.Value == json.JSON_VALUE_OBJECT {
+				columnNode = json.FindNode(rowNode, columnName)
+			} else if rowNode.Value == json.JSON_VALUE_ARRAY {
+				columnNode = json.FindNode(rowNode.Values[vc.y], columnName)
+			}
+		} else {
+			if rowNode.Value == json.JSON_VALUE_OBJECT {
+				columnNode = json.FindNode(rowNode, splitColumnName[0])
+			} else if rowNode.Value == json.JSON_VALUE_ARRAY {
+				columnNode = json.FindNode(rowNode.Values[vc.y], splitColumnName[0])
+			}
 		}
 	} else {
 		if rowNode.Value == json.JSON_VALUE_OBJECT {
@@ -154,8 +155,6 @@ func (vc *jsonCursor) Column(c *sqlite3.SQLiteContext, col int) error {
 			columnNode = json.FindNode(rowNode.Values[vc.y], columnName)
 		}
 	}
-
-	(*vc.result)[columnName] = columnNode
 
 	if columnNode == nil {
 		c.ResultNull()
@@ -193,9 +192,6 @@ func (vc *jsonCursor) Filter(idxNum int, idxStr string, vals []interface{}) erro
 }
 
 func (vc *jsonCursor) Next() error {
-	// Clear our previous rows results.
-	*vc.result = make(map[string]*json.ASTNode)
-
 	// Object queries only execute a single row.
 	if vc.queryRoot.Value == json.JSON_VALUE_OBJECT {
 		vc.eof = true
@@ -235,10 +231,8 @@ func Exec(clientData *ClientData) []*json.ASTNode {
 
 	// Register our module and the hook to be invoked on each
 	// 'CREATE VIRTUAL TABLE ...' statement.
-	result := make(map[string]*json.ASTNode)
 	jsonModule := jsonModule{
 		clientData: clientData,
-		result:     &result,
 	}
 	sql.Register(Driver, &sqlite3.SQLiteDriver{
 		ConnectHook: func(conn *sqlite3.SQLiteConn) error {
@@ -258,8 +252,10 @@ func Exec(clientData *ClientData) []*json.ASTNode {
 	// initialize the associate jsonTable instance.
 	tables := sqlj.ExtractIdentifiers(clientData.SqlAst, sqlj.Table)
 	for i := 0; i < len(tables); i++ {
-		jsonModule.createTableStmt = &createTableStmts[i]
-		_, err = db.Exec(fmt.Sprintf("CREATE VIRTUAL TABLE %[1]s USING sqjson", tables[i]))
+		jsonModule.createTableStmt = &(createTableStmts.CreateTableStmts[i])
+		jsonModule.table = &tables[i]
+		jsonModule.columns = &(createTableStmts.Columns[i])
+		_, err = db.Exec(fmt.Sprintf("CREATE VIRTUAL TABLE %s USING sqjson", tables[i]))
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -274,12 +270,37 @@ func Exec(clientData *ClientData) []*json.ASTNode {
 	nodes := make([]*json.ASTNode, 0)
 	rows, err := stmt.Query()
 	defer rows.Close()
+
 	for rows.Next() {
 		columns, _ := rows.Columns()
-		for i := 0; i < len(columns); i++ {
-			columnNode := (*jsonModule.result)[columns[i]]
-			if columnNode != nil {
-				nodes = append(nodes, columnNode)
+		results := make([]interface{}, len(columns))
+		for i, _ := range results {
+			var value string
+			results[i] = &value
+		}
+
+		rows.Scan(results...)
+		for _, result := range results {
+			resultString := *result.(*string)
+			parsedNumber, err := strconv.ParseFloat(resultString, 64)
+			if err == nil {
+				nodes = append(nodes, &json.ASTNode{
+					Value:   json.JSON_VALUE_NUMBER,
+					Name:    "",
+					Members: nil,
+					Values:  nil,
+					Number:  parsedNumber,
+					String:  "",
+				})
+			} else {
+				nodes = append(nodes, &json.ASTNode{
+					Value:   json.JSON_VALUE_STRING,
+					Name:    "",
+					Members: nil,
+					Values:  nil,
+					Number:  0,
+					String:  resultString,
+				})
 			}
 		}
 	}

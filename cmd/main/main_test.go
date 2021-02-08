@@ -377,16 +377,88 @@ func TestCmd_StdIn_JoinSubArrays(t *testing.T) {
 				"4", "3", "4", "4", "4", "5", "4", "6",
 			},
 		},
-		/*		{
-				"SELECT a.id, b.value FROM a JOIN b ON a.id == b.value;",
-				[]string{
-					"3", "4", "3", "4",
-				},
-			},*/
+		{
+			"SELECT a.id, b.value FROM a JOIN b ON a.id == b.value;",
+			[]string{
+				"3", "3", "4", "4", // 3|3, 4|4
+			},
+		},
 	}
 
 	for i, test := range cases {
 		vtable.Driver = fmt.Sprintf("TestCmd_StdIn_JoinSubArrays_%d", i)
+		ioIn = bytes.NewReader([]byte(json))
+		ioOut = bytes.NewBuffer(nil)
+		ioErr = bytes.NewBuffer(nil)
+
+		// Act.
+		os.Args = []string{"./sqj", test.statement, "-"}
+		main()
+
+		// Assert.
+		result := ioOut.(*bytes.Buffer).String()
+		result = strings.Trim(result, "\n")
+
+		splitResult := strings.Split(result, "\n")
+		if len(splitResult) != len(test.expected) {
+			t.Error("unexpected number of values")
+		}
+
+		for i, value := range splitResult {
+			if strings.Trim(value, "\n") != test.expected[i] {
+				t.Error("unexpected values")
+			}
+		}
+	}
+}
+
+func TestCmd_StdIn_SelfJoin(t *testing.T) {
+	// Arrange.
+	json := `
+		[
+			{
+				"id": 1,
+				"customer": "Joe",
+				"total": 5
+			},
+			{
+				"id": 2,
+				"customer": "Sally",
+				"total": 3
+			},
+			{
+				"id": 3,
+				"customer": "Joe",
+				"total": 2
+			},
+			{
+				"id": 4,
+				"customer": "Sally",
+				"total": 1
+			}
+		]
+	`
+
+	type TestCase struct {
+		statement string
+		expected  []string
+	}
+	cases := []TestCase{
+		{
+			`SELECT MIN(x.id), x.customer, x.total
+				FROM [] AS x
+				JOIN (SELECT p.customer, MAX(total) AS max_total FROM [] AS p GROUP BY p.customer) AS y
+				ON y.customer = x.customer AND y.max_total = x.total
+				GROUP BY x.customer, x.total;`,
+			[]string{
+				"1", "\"Joe\"", "5",
+				"2", "\"Sally\"", "3",
+			},
+		},
+	}
+
+	for i, test := range cases {
+		vtable.Driver = fmt.Sprintf("TestCmd_StdIn_Complicated_%d", i)
 		ioIn = bytes.NewReader([]byte(json))
 		ioOut = bytes.NewBuffer(nil)
 		ioErr = bytes.NewBuffer(nil)
