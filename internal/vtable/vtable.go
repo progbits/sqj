@@ -58,8 +58,6 @@ type jsonTable struct {
 	clientData *ClientData
 	table      string
 	columns    []string
-	x          int
-	y          int
 }
 
 func (v *jsonTable) Open() (sqlite3.VTabCursor, error) {
@@ -122,6 +120,8 @@ type jsonCursor struct {
 	queryRoot *json.ASTNode
 	columns   []string
 	eof       bool
+	x         int
+	y         int
 }
 
 func (vc *jsonCursor) Column(c *sqlite3.SQLiteContext, col int) error {
@@ -185,7 +185,6 @@ func (vc *jsonCursor) Filter(idxNum int, idxStr string, vals []interface{}) erro
 		vc.y = 0
 		vc.current = vc.queryRoot
 		vc.eof = false
-		return nil
 	}
 
 	return nil
@@ -199,15 +198,15 @@ func (vc *jsonCursor) Next() error {
 	}
 
 	// Array queries might be on nested arrays.
-	vc.jsonTable.y++
-	if vc.jsonTable.y >= len(vc.current.Values) {
-		vc.jsonTable.y = 0
-		vc.jsonTable.x++
-		if vc.jsonTable.x >= len(vc.queryRoot.Values) || vc.queryRoot == vc.current {
+	vc.y++
+	if vc.y >= len(vc.current.Values) {
+		vc.y = 0
+		vc.x++
+		if vc.x >= len(vc.queryRoot.Values) || vc.queryRoot == vc.current {
 			vc.eof = true
 			return nil
 		}
-		vc.current = json.FindNode(vc.queryRoot.Values[vc.jsonTable.x], vc.table)
+		vc.current = json.FindNode(vc.queryRoot.Values[vc.x], vc.table)
 	}
 	return nil
 }
@@ -217,7 +216,7 @@ func (vc *jsonCursor) EOF() bool {
 }
 
 func (vc *jsonCursor) Rowid() (int64, error) {
-	return int64(vc.jsonTable.x), nil
+	return int64(vc.x), nil
 }
 
 func (vc *jsonCursor) Close() error {

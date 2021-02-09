@@ -483,3 +483,89 @@ func TestCmd_StdIn_SelfJoin(t *testing.T) {
 		}
 	}
 }
+
+func TestCmd_StdIn_MoreJoin(t *testing.T) {
+	// Arrange.
+	json := `
+		{
+			"Orders": [
+				{
+					"OrderId": "c1450af6-b226-4d32-bd84-923c38465efb",
+					"OrderNumber": "a0269a00-4e51-4a9a-8455-1706151e24a1"
+				},
+				{
+					"OrderId": "da84fe83-8f41-4f30-a691-79686cce74f4",
+					"OrderNumber": "39967107-84c9-425e-89f7-7f4d1c7df39c"
+				}
+			],
+			"LineItems": [
+				{
+					"LineItemId": "a90bcbe7-c44f-477f-9928-8c9792db7c30",
+					"OrderId": "c1450af6-b226-4d32-bd84-923c38465efb",
+					"Quantity": 7,
+					"Description": "Widget A"
+				},
+				{
+					"LineItemId": "e7cf47c9-dd4c-4cac-9039-dcbbb4ec3d94",
+					"OrderId": "da84fe83-8f41-4f30-a691-79686cce74f4",
+					"Quantity": 42,
+					"Description": "Widget B"
+				},
+				{
+					"LineItemId": "98f5bef8-c93b-4c20-917e-ee51d2dcdc70",
+					"OrderId": "da84fe83-8f41-4f30-a691-79686cce74f4",
+					"Quantity": 69,
+					"Description": "Widget C"
+				}
+			]
+		}
+	`
+
+	type TestCase struct {
+		statement string
+		expected  []string
+	}
+	cases := []TestCase{
+		{
+			`SELECT Orders.OrderNumber, LineItems.Quantity, LineItems.Description
+				FROM Orders
+				INNER JOIN LineItems
+				ON Orders.OrderId = LineItems.OrderId
+				WHERE LineItems.LineItemId = (
+					SELECT MIN(LineItemId)
+					FROM   LineItems
+					WHERE  OrderId = Orders.OrderId
+				);`,
+			[]string{
+				"\"39967107-84c9-425e-89f7-7f4d1c7df39c\"", "7", "\"Widget A\"",
+				"\"39967107-84c9-425e-89f7-7f4d1c7df39c\"", "69", "\"Widget B\"",
+			},
+		},
+	}
+
+	for i, test := range cases {
+		vtable.Driver = fmt.Sprintf("TestCmd_StdIn_MoreJoins_%d", i)
+		ioIn = bytes.NewReader([]byte(json))
+		ioOut = bytes.NewBuffer(nil)
+		ioErr = bytes.NewBuffer(nil)
+
+		// Act.
+		os.Args = []string{"./sqj", test.statement, "-"}
+		main()
+
+		// Assert.
+		result := ioOut.(*bytes.Buffer).String()
+		result = strings.Trim(result, "\n")
+
+		splitResult := strings.Split(result, "\n")
+		if len(splitResult) != len(test.expected) {
+			t.Error("unexpected number of values")
+		}
+
+		for i, value := range splitResult {
+			if strings.Trim(value, "\n") != test.expected[i] {
+				t.Error("unexpected values")
+			}
+		}
+	}
+}

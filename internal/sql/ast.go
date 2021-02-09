@@ -50,6 +50,7 @@ func (e *BetweenExpr) isExpr()      {}
 func (e *InExpr) isExpr()           {}
 func (e *ExistsExpr) isExpr()       {}
 func (e *CaseExpr) isExpr()         {}
+func (e *SelectStmt) isExpr()       {}
 
 // expression types
 type (
@@ -618,6 +619,9 @@ func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents map[
 			extractIdentifierFromExpression(caseExpr.then[i], kind, idents)
 		}
 		extractIdentifierFromExpression(caseExpr.elseExpr, kind, idents)
+	case *SelectStmt:
+		selectStmt := expr.(*SelectStmt)
+		extractIdentifiersImpl(selectStmt, kind, idents)
 	}
 }
 

@@ -420,6 +420,12 @@ func (p *Parser) parsePrefix() Expr {
 		}
 		return &caseExpr
 	case LP:
+		if p.token == SELECT {
+			p.next()
+			stmt := p.parseSelectStmt()
+			return &stmt
+		}
+
 		expr := p.parseExpr(0)
 		p.assertAndConsumeToken(RP)
 		return expr
