@@ -372,8 +372,10 @@ func (p *Parser) parsePrefix() Expr {
 			return functionCallExpr
 		}
 		return &IdentifierExpr{value: identifier}
-	case NUMERIC_LITERAL, STRING_LITERAL:
-		return &LiteralExpr{value: value}
+	case NUMERIC_LITERAL:
+		return &LiteralExpr{value: value, kind: None}
+	case STRING_LITERAL:
+		return &LiteralExpr{value: value, kind: Column}
 	case NOT:
 		if p.token == EXISTS {
 			exists := p.parsePrefix()

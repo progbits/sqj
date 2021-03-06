@@ -7,6 +7,7 @@ type IdentifierKind int
 const (
 	Column IdentifierKind = iota
 	Table
+	None
 )
 
 type JoinType int
@@ -58,6 +59,7 @@ type (
 
 	LiteralExpr struct {
 		value string
+		kind  IdentifierKind
 	}
 
 	IdentifierExpr struct {
@@ -570,7 +572,12 @@ func extractIdentifierFromExpression(expr Expr, kind IdentifierKind, idents map[
 			}
 		}
 	case *LiteralExpr:
-		break
+		value := expr.(*LiteralExpr)
+		if value.kind == kind {
+			if found := idents[value.value]; !found {
+				idents[value.value] = true
+			}
+		}
 	case *IdentifierExpr:
 		value := expr.(*IdentifierExpr)
 		if value.kind == kind {

@@ -23,6 +23,40 @@ func TestCmd_RunningWitNoArgumentsShouldShowHelpAndExitSuccess(t *testing.T) {
 	main()
 }
 
+func TestCmd_InputCanHaveKeywordFields(t *testing.T) {
+	// Arrange.
+	json := `
+		{
+			"select": "hello",
+			"index": 0,
+			"from": false,
+		}
+	`
+
+	testCases := []TestCase{
+		{"select", "\"hello\""},
+		{"index", "0"},
+		{"from", "0"},
+	}
+
+	for i := 0; i < len(testCases); i++ {
+		vtable.Driver = fmt.Sprintf("TestCmd_InputCanHaveKeywordFields_%d", i)
+		ioIn = bytes.NewReader([]byte(json))
+		ioOut = bytes.NewBuffer(nil)
+		ioErr = bytes.NewBuffer(nil)
+
+		// Act.
+		os.Args = []string{"./sqj", fmt.Sprintf("SELECT \"%s\" FROM []", testCases[i].query), "-"}
+		main()
+
+		// Assert
+		result := ioOut.(*bytes.Buffer).String()
+		if strings.Trim(result, "\n") != testCases[i].expected {
+			t.Error("unexpected result")
+		}
+	}
+}
+
 func TestCmd_Numerical_Formatting(t *testing.T) {
 	// Arrange.
 	json := `
