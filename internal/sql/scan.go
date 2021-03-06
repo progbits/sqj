@@ -418,18 +418,18 @@ func (s *Scanner) ScanToken() (Token, string) {
 			value += string(s.char)
 		}
 		return NUMERIC_LITERAL, value
-	case c == '\'':
-		// String literal, consume to peek '\'', ignoring nested '\'' for now.
-		bytes := make([]byte, 0)
+	case c == '\'' || c == '"':
+		s.next()
+		value := ""
 		for {
-			s.cursor += 1
-			if s.cursor >= len(s.input)-1 || s.input[s.cursor] == '\'' {
-				s.cursor += 1
+			if s.cursor >= len(s.input)-1 || s.char == '\'' || s.char == '"' {
+				s.next()
 				break
 			}
-			bytes = append(bytes, s.input[s.cursor])
+			value += string(s.char)
+			s.next()
 		}
-		return STRING_LITERAL, ""
+		return STRING_LITERAL, value
 	}
 
 	// Match all other tokens.

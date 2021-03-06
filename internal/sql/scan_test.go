@@ -105,6 +105,18 @@ func TestIdentifiers(t *testing.T) {
 	}
 }
 
+func TestStringLiterals(t *testing.T) {
+	var cases = []TestCase{
+		{"\"hello, world\";", []TokenValuePair{{STRING_LITERAL, "hello, world"}, {SEMI, ""}}},
+	}
+
+	for _, _case := range cases {
+		scanner := NewScanner([]byte(_case.statement))
+		tokens := scanAll(scanner)
+		checkEquality(t, tokens, _case.expected)
+	}
+}
+
 func TestRealNumbers(t *testing.T) {
 	var cases = []TestCase{
 		//{"42.;", []TokenValuePair{{NUMERIC_LITERAL, "42."}, {SEMI, ""}}},
