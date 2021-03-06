@@ -1,6 +1,7 @@
 package vtable
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
 	"github.com/progbits/sqjson/internal/json"
@@ -163,7 +164,9 @@ func (vc *jsonCursor) Column(c *sqlite3.SQLiteContext, col int) error {
 
 	switch columnNode.Value {
 	case json.JSON_VALUE_OBJECT, json.JSON_VALUE_ARRAY:
-		break
+		buf := bytes.NewBuffer(nil)
+		json.PrettyPrint(buf, columnNode, true)
+		c.ResultText(string(buf.Bytes()))
 	case json.JSON_VALUE_NUMBER:
 		c.ResultDouble(columnNode.Number)
 	case json.JSON_VALUE_STRING:

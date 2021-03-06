@@ -57,6 +57,53 @@ func TestCmd_InputCanHaveKeywordFields(t *testing.T) {
 	}
 }
 
+func TestCmd_ObjectWithArrayMember(t *testing.T) {
+	// Arrange.
+	json := `
+		{
+		  "id": "6043f3419f51a307278d160f",
+		  "index": 0,
+		  "guid": "2eb51437-51d9-458f-b805-877dcf2ef908",
+		  "isActive": false,
+		  "content": [
+			{
+			  "id": 0,
+			  "word": "velit"
+			},
+			{
+			  "id": 1,
+			  "word": "culpa"
+			},
+			{
+			  "id": 2,
+			  "word": "pariatur"
+			}
+		  ]
+		}
+	`
+
+	testCases := []TestCase{
+		{"content", "\"[{\"id\": 0,\"word\": \"velit\"},{\"id\": 1,\"word\": \"culpa\"},{\"id\": 2,\"word\": \"pariatur\"}]\""},
+	}
+
+	for i := 0; i < len(testCases); i++ {
+		vtable.Driver = fmt.Sprintf("TestCmd_ObjectWithArrayMember_%d", i)
+		ioIn = bytes.NewReader([]byte(json))
+		ioOut = bytes.NewBuffer(nil)
+		ioErr = bytes.NewBuffer(nil)
+
+		// Act.
+		os.Args = []string{"./sqj", fmt.Sprintf("SELECT \"%s\" FROM []", testCases[i].query), "-"}
+		main()
+
+		// Assert
+		result := ioOut.(*bytes.Buffer).String()
+		if strings.Trim(result, "\n") != testCases[i].expected {
+			t.Error("unexpected result")
+		}
+	}
+}
+
 func TestCmd_Numerical_Formatting(t *testing.T) {
 	// Arrange.
 	json := `
