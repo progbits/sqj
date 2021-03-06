@@ -18,6 +18,11 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+func TestCmd_RunningWitNoArgumentsShouldShowHelpAndExitSuccess(t *testing.T) {
+	os.Args = []string{"./sqj"}
+	main()
+}
+
 func TestCmd_Numerical_Formatting(t *testing.T) {
 	// Arrange.
 	json := `

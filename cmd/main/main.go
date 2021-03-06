@@ -26,7 +26,8 @@ func usage() {
 Query JSON with SQL.
 
     --help    Display this message and exit
-    --compact Format output without any extraneous whitespace`)
+    --compact Format output without any extraneous whitespace
+`)
 }
 
 // Global configuration.
@@ -37,6 +38,7 @@ var ioErr io.Writer = os.Stderr
 func main() {
 	if len(os.Args) < 2 {
 		usage()
+		os.Exit(0)
 	}
 
 	// Parse command line options.
