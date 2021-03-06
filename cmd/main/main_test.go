@@ -537,8 +537,8 @@ func TestCmd_StdIn_MoreJoin(t *testing.T) {
 					WHERE  OrderId = Orders.OrderId
 				);`,
 			[]string{
-				"\"39967107-84c9-425e-89f7-7f4d1c7df39c\"", "7", "\"Widget A\"",
-				"\"39967107-84c9-425e-89f7-7f4d1c7df39c\"", "69", "\"Widget B\"",
+				"\"a0269a00-4e51-4a9a-8455-1706151e24a1\"", "7", "\"Widget A\"",
+				"\"39967107-84c9-425e-89f7-7f4d1c7df39c\"", "69", "\"Widget C\"",
 			},
 		},
 	}
