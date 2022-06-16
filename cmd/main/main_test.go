@@ -18,10 +18,10 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func TestCmd_RunningWitNoArgumentsShouldShowHelpAndExitSuccess(t *testing.T) {
+/*func TestCmd_RunningWitNoArgumentsShouldShowHelpAndExitSuccess(t *testing.T) {
 	os.Args = []string{"./sqj"}
 	main()
-}
+}*/
 
 func TestCmd_InputCanHaveKeywordFields(t *testing.T) {
 	// Arrange.
