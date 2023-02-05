@@ -4,7 +4,7 @@ TARGET_NAME=sqj
 
 all: test build
 build:
-	go build -tags=sqlite_vtable -o bin/$(TARGET_NAME) -v ./cmd/main
+	go build -tags=sqlite_vtable -o bin/$(TARGET_NAME) -v ./cmd
 test:
 	go test -tags=sqlite_vtable -v ./...
 fmt:

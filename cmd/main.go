@@ -6,68 +6,29 @@ import (
 	"github.com/progbits/sqjson/internal/json"
 	"github.com/progbits/sqjson/internal/sql"
 	"github.com/progbits/sqjson/internal/vtable"
+	"github.com/spf13/cobra"
 
 	"io"
 	"os"
-	"strconv"
 )
-
-type Options struct {
-	compact bool
-	nth     int
-
-	query string
-}
-
-func usage() {
-	_, _ = fmt.Fprintf(ioErr,
-		`Usage: sqj [OPTION]... <SQL> [FILE]...
-Query JSON with SQL.
-
-    --help    Display this message and exit
-    --compact Format output without any extraneous whitespace
-`)
-}
 
 // Global configuration.
 var ioIn io.Reader = os.Stdin
 var ioOut io.Writer = os.Stdout
 var ioErr io.Writer = os.Stderr
 
-func main() {
-	if len(os.Args) < 2 {
-		usage()
-		os.Exit(0)
-	}
+type rootCmdVars struct {
+	query      string
+	inputFiles []string
+	nth        string
+	compact    bool
+}
 
-	// Parse command line options.
-	i := 0
+func runRootCmd(vars *rootCmdVars, cmd *cobra.Command, args []string) {
 	var err error
-	options := Options{nth: -1}
-	for i = 1; i < len(os.Args); i++ {
-		z := os.Args[i]
-		if z[0] != '-' {
-			break
-		}
-		if z[1] == '-' {
-			z = z[1:]
-		}
 
-		if z == "-help" {
-			usage()
-		} else if z == "-compact" {
-			options.compact = true
-		} else if z == "-nth" {
-			options.nth, _ = strconv.Atoi(os.Args[i])
-		}
-	}
-
-	// The query string should be the first argument after options.
-	options.query = os.Args[i]
-	i++
-
-	// Parse our SQL query.
-	scanner := sql.NewScanner([]byte(options.query))
+	// Parse the SQL query.
+	scanner := sql.NewScanner([]byte(vars.query))
 	sqlParser := sql.NewParser(scanner)
 	stmt := sqlParser.Parse()
 
@@ -75,8 +36,8 @@ func main() {
 	// do not read from stdin. A single file named "-" is  treated as an alias
 	// for stdin.
 	fin := ioIn
-	if i < len(os.Args) && os.Args[i] != "-" {
-		fin, err = os.Open(os.Args[i])
+	if len(vars.inputFiles) > 0 && vars.inputFiles[0] != "-" {
+		fin, err = os.Open(vars.inputFiles[0])
 		if err != nil {
 			panic("failed to open file")
 		}
@@ -102,12 +63,38 @@ func main() {
 	clientData := vtable.ClientData{
 		JsonAst: &jsonParser.Ast,
 		SqlAst:  &stmt,
-		Query:   options.query,
+		Query:   vars.query,
 	}
 	result := vtable.Exec(&clientData)
 
 	for _, node := range result {
-		json.PrettyPrint(ioOut, node, options.compact)
+		json.PrettyPrint(ioOut, node, vars.compact)
 		_, _ = fmt.Fprintf(ioOut, "\n")
 	}
+}
+
+func main() {
+	rootCmd := &cobra.Command{
+		Use:   "sqj 'QUERY' [FILE]",
+		Short: "Query JSON with SQL",
+		Long:  `Query JSON with SQL`,
+		Args:  cobra.MinimumNArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			var nth string
+			var compact bool
+
+			cmd.Flags().StringVarP(&nth, "nth", "n", "", "The nth flag")
+			cmd.Flags().BoolVarP(&compact, "compact", "c", false, "The compact flag")
+
+			vars := &rootCmdVars{
+				query:      args[0],
+				inputFiles: args[1:],
+				nth:        nth,
+				compact:    compact,
+			}
+			runRootCmd(vars, cmd, args)
+		},
+	}
+
+	rootCmd.Execute()
 }

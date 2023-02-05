@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/progbits/sqjson/internal/vtable"
-	"os"
 	"strings"
 	"testing"
 )
@@ -24,7 +23,6 @@ func TestMain(m *testing.M) {
 }*/
 
 func TestCmd_InputCanHaveKeywordFields(t *testing.T) {
-	// Arrange.
 	json := `
 		{
 			"select": "hello",
@@ -45,11 +43,14 @@ func TestCmd_InputCanHaveKeywordFields(t *testing.T) {
 		ioOut = bytes.NewBuffer(nil)
 		ioErr = bytes.NewBuffer(nil)
 
-		// Act.
-		os.Args = []string{"./sqj", fmt.Sprintf("SELECT \"%s\" FROM []", testCases[i].query), "-"}
-		main()
+		vars := rootCmdVars{
+			query:      fmt.Sprintf("SELECT \"%s\" FROM []", testCases[i].query),
+			inputFiles: nil,
+			nth:        "",
+			compact:    false,
+		}
+		runRootCmd(&vars, nil, nil)
 
-		// Assert
 		result := ioOut.(*bytes.Buffer).String()
 		if strings.Trim(result, "\n") != testCases[i].expected {
 			t.Error("unexpected result")
@@ -58,7 +59,6 @@ func TestCmd_InputCanHaveKeywordFields(t *testing.T) {
 }
 
 func TestCmd_ObjectWithArrayMember(t *testing.T) {
-	// Arrange.
 	json := `
 		{
 		  "id": "6043f3419f51a307278d160f",
@@ -92,11 +92,14 @@ func TestCmd_ObjectWithArrayMember(t *testing.T) {
 		ioOut = bytes.NewBuffer(nil)
 		ioErr = bytes.NewBuffer(nil)
 
-		// Act.
-		os.Args = []string{"./sqj", fmt.Sprintf("SELECT \"%s\" FROM []", testCases[i].query), "-"}
-		main()
+		vars := rootCmdVars{
+			query:      fmt.Sprintf("SELECT \"%s\" FROM []", testCases[i].query),
+			inputFiles: nil,
+			nth:        "",
+			compact:    false,
+		}
+		runRootCmd(&vars, nil, nil)
 
-		// Assert
 		result := ioOut.(*bytes.Buffer).String()
 		if strings.Trim(result, "\n") != testCases[i].expected {
 			t.Error("unexpected result")
@@ -105,7 +108,6 @@ func TestCmd_ObjectWithArrayMember(t *testing.T) {
 }
 
 func TestCmd_Numerical_Formatting(t *testing.T) {
-	// Arrange.
 	json := `
 		{
 				"α": 0.0072973525693,
@@ -136,11 +138,14 @@ func TestCmd_Numerical_Formatting(t *testing.T) {
 		ioOut = bytes.NewBuffer(nil)
 		ioErr = bytes.NewBuffer(nil)
 
-		// Act.
-		os.Args = []string{"./sqj", fmt.Sprintf("SELECT %s FROM []", testCases[i].query), "-"}
-		main()
+		vars := rootCmdVars{
+			query:      fmt.Sprintf("SELECT \"%s\" FROM []", testCases[i].query),
+			inputFiles: nil,
+			nth:        "",
+			compact:    false,
+		}
+		runRootCmd(&vars, nil, nil)
 
-		// Assert
 		result := ioOut.(*bytes.Buffer).String()
 		if strings.Trim(result, "\n") != testCases[i].expected {
 			t.Error("unexpected result")
@@ -214,8 +219,13 @@ func TestCmd_StdIn_NestedObject(t *testing.T) {
 	ioErr = bytes.NewBuffer(nil)
 
 	// Act.
-	os.Args = []string{"./sqj", "SELECT about$metric FROM []", "-"}
-	main()
+	vars := rootCmdVars{
+		query:      "SELECT about$metric FROM []",
+		inputFiles: nil,
+		nth:        "",
+		compact:    false,
+	}
+	runRootCmd(&vars, nil, nil)
 
 	// Assert
 	result := ioOut.(*bytes.Buffer).String()
@@ -307,8 +317,13 @@ func TestCmd_StdIn_SelectFromSubArray(t *testing.T) {
 	ioErr = bytes.NewBuffer(nil)
 
 	// Act.
-	os.Args = []string{"./sqj", "SELECT lag FROM metric WHERE skew > 0", "-"}
-	main()
+	vars := rootCmdVars{
+		query:      "SELECT lag FROM metric WHERE skew > 0",
+		inputFiles: nil,
+		nth:        "",
+		compact:    false,
+	}
+	runRootCmd(&vars, nil, nil)
 
 	// Assert
 	result := ioOut.(*bytes.Buffer).String()
@@ -399,8 +414,13 @@ func TestCmd_StdIn_SelectFromSubArray_DuplicateColumns(t *testing.T) {
 	ioErr = bytes.NewBuffer(nil)
 
 	// Act.
-	os.Args = []string{"./sqj", "SELECT skew, lag FROM metric WHERE skew > 0", "-"}
-	main()
+	vars := rootCmdVars{
+		query:      "SELECT skew, lag FROM metric WHERE skew > 0",
+		inputFiles: nil,
+		nth:        "",
+		compact:    false,
+	}
+	runRootCmd(&vars, nil, nil)
 
 	// Assert
 	result := ioOut.(*bytes.Buffer).String()
@@ -478,8 +498,13 @@ func TestCmd_StdIn_JoinSubArrays(t *testing.T) {
 		ioErr = bytes.NewBuffer(nil)
 
 		// Act.
-		os.Args = []string{"./sqj", test.statement, "-"}
-		main()
+		vars := rootCmdVars{
+			query:      test.statement,
+			inputFiles: nil,
+			nth:        "",
+			compact:    false,
+		}
+		runRootCmd(&vars, nil, nil)
 
 		// Assert.
 		result := ioOut.(*bytes.Buffer).String()
@@ -550,8 +575,13 @@ func TestCmd_StdIn_SelfJoin(t *testing.T) {
 		ioErr = bytes.NewBuffer(nil)
 
 		// Act.
-		os.Args = []string{"./sqj", test.statement, "-"}
-		main()
+		vars := rootCmdVars{
+			query:      test.statement,
+			inputFiles: nil,
+			nth:        "",
+			compact:    false,
+		}
+		runRootCmd(&vars, nil, nil)
 
 		// Assert.
 		result := ioOut.(*bytes.Buffer).String()
@@ -636,8 +666,13 @@ func TestCmd_StdIn_MoreJoin(t *testing.T) {
 		ioErr = bytes.NewBuffer(nil)
 
 		// Act.
-		os.Args = []string{"./sqj", test.statement, "-"}
-		main()
+		vars := rootCmdVars{
+			query:      test.statement,
+			inputFiles: nil,
+			nth:        "",
+			compact:    false,
+		}
+		runRootCmd(&vars, nil, nil)
 
 		// Assert.
 		result := ioOut.(*bytes.Buffer).String()
