@@ -1,5 +1,7 @@
 # sqj
 
+[![Build](https://github.com/progbits/sqj/actions/workflows/build.yaml/badge.svg?branch=main)](https://github.com/progbits/sqj/actions/workflows/build.yaml)
+
 Query JSON with SQL.
 
 ## Requirements
