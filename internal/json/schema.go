@@ -13,7 +13,6 @@ type Schema struct {
 // nested members, column names are a concatenation of the member names,
 // separated by $. Top-level objects have no name, so their concatenated name is
 // simply the prefix itself with no trailing $.
-//
 func concatPrefixName(prefix, name string) string {
 	if prefix == "" {
 		return name

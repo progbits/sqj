@@ -7,7 +7,6 @@ import (
 	"github.com/progbits/sqjson/internal/sql"
 	"github.com/progbits/sqjson/internal/vtable"
 
-	//"github.com/progbits/sqjson/internal/sql"
 	"io"
 	"os"
 	"strconv"
